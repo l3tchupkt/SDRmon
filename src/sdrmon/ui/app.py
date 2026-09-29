@@ -13,6 +13,7 @@ from sdrmon.core.settings import StreamConfig
 from sdrmon.ui.controller import UIController
 from sdrmon.ui.widgets.spectrum import SpectrumUpdated, SpectrumWidget
 from sdrmon.ui.widgets.status import StatusWidget
+from sdrmon.ui.widgets.waterfall import WaterfallWidget
 
 
 class MonitorScreen(Container):
@@ -22,6 +23,7 @@ class MonitorScreen(Container):
         with Vertical():
             yield StatusWidget(id="status-panel")
             yield SpectrumWidget(id="spectrum")
+            yield WaterfallWidget(id="waterfall", classes="hidden")
 
 
 class SDRmonApp(App[Any]):
@@ -36,6 +38,13 @@ class SDRmonApp(App[Any]):
         height: 1fr;
         border: solid $primary;
     }
+    #waterfall {
+        height: 1fr;
+        border: solid $secondary;
+    }
+    .hidden {
+        display: none;
+    }
     """
 
     BINDINGS = [
@@ -45,6 +54,7 @@ class SDRmonApp(App[Any]):
         ("g", "gain", "Gain"),
         ("s", "rate", "Sample Rate"),
         ("w", "window", "Window"),
+        ("v", "toggle_waterfall", "Waterfall"),
         ("+", "zoom_in", "Zoom In"),
         ("-", "zoom_out", "Zoom Out"),
         ("?", "help", "Help"),
@@ -90,8 +100,11 @@ class SDRmonApp(App[Any]):
     def on_spectrum_updated(self, message: SpectrumUpdated) -> None:
         spectrum = self.query_one(SpectrumWidget)
         status = self.query_one(StatusWidget)
+        waterfall = self.query_one(WaterfallWidget)
 
         spectrum.update_result(message.result)
+        if not waterfall.has_class("hidden"):
+            waterfall.update_result(message.result)
 
         status.noise_floor = message.result.noise_floor
         status.peak_freq = message.result.peak_frequency
@@ -108,6 +121,17 @@ class SDRmonApp(App[Any]):
             else:
                 self.controller.pause()
                 self.sub_title = "[PAUSED]"
+
+    def action_toggle_waterfall(self) -> None:
+        waterfall = self.query_one(WaterfallWidget)
+        if waterfall.has_class("hidden"):
+            waterfall.remove_class("hidden")
+        else:
+            waterfall.add_class("hidden")
+
+    def on_stream_error_msg(self, message) -> None:
+        self.notify(f"STREAM ERROR: {message.error}", severity="error")
+        self.sub_title = "[ERROR]"
 
     def action_freq(self) -> None:
         self.notify(

@@ -34,6 +34,7 @@ class UIController:
         self._thread: Optional[threading.Thread] = None
         self._running = False
         self._paused = False
+        self._stop_event = threading.Event()
 
     def start(self):
         """Start the background worker."""
@@ -46,18 +47,23 @@ class UIController:
 
         self._running = True
         self._paused = False
+        self._stop_event.clear()
         self._thread = threading.Thread(target=self._worker, daemon=True)
         self._thread.start()
 
     def stop(self):
         """Stop the background worker."""
         self._running = False
-        if self._thread:
-            self._thread.join(timeout=1.0)
-            self._thread = None
+        self._stop_event.set()
+
         if self._stream:
             self._stream.close()
-            self._stream = None
+
+        if self._thread:
+            self._thread.join(timeout=2.0)
+            self._thread = None
+
+        self._stream = None
 
     def pause(self):
         """Pause UI updates (keeps streaming under the hood)."""
@@ -100,7 +106,7 @@ class UIController:
 
         try:
             for block in self._stream:
-                if not self._running:
+                if self._stop_event.is_set():
                     break
 
                 if self._paused:
@@ -115,8 +121,16 @@ class UIController:
                         self.app.post_message(SpectrumUpdated(result))
                     last_update = now
 
-        except Exception:
-            # Send an error message or log
-            pass
+        except Exception as e:
+            # Push error state to UI
+            from textual.message import Message
+
+            class StreamErrorMsg(Message):
+                def __init__(self, err: Exception):
+                    super().__init__()
+                    self.error = err
+
+            # Use call_from_thread since post_message might need thread-safety in some versions
+            self.app.post_message(StreamErrorMsg(e))
         finally:
             self._running = False

@@ -2,7 +2,6 @@
 Spectrum rendering widget for Textual.
 """
 
-
 import numpy as np
 from rich.segment import Segment
 from rich.style import Style
@@ -87,15 +86,9 @@ class SpectrumWidget(Widget):
             return Strip([Segment(" " * width)])
 
         # Aggregate bins (max-preserving)
-        chunk_size = max(1, n_bins // width)
-        downsampled = []
-        for i in range(width):
-            start = i * chunk_size
-            end = start + chunk_size
-            if start < n_bins:
-                downsampled.append(np.max(power[start:end]))
-            else:
-                downsampled.append(self.min_power)
+        from sdrmon.ui.rendering import aggregate_spectrum
+
+        downsampled = aggregate_spectrum(power, width, self.min_power)
 
         # Draw the line
         segments = []

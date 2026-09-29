@@ -25,6 +25,7 @@ sdrmon monitor --fake
 | `q`     | Quit the application safely |
 | `Space` | Pause / Resume spectrum updates |
 | `w`     | Cycle FFT window function (Hann, Hamming, Blackman, Rectangular) |
+| `v`     | Toggle Waterfall visibility |
 
 ## Supported Settings
 

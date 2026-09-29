@@ -38,4 +38,18 @@ async def test_app_startup():
         await pilot.press("w")
         assert app.controller.window == "hamming"
 
+        # Test toggle waterfall
+        from sdrmon.ui.widgets.waterfall import WaterfallWidget
+
+        waterfall = app.query_one(WaterfallWidget)
+        assert waterfall.has_class("hidden")
+        await pilot.press("v")
+        assert not waterfall.has_class("hidden")
+
+        # Explicitly test controller shutdown
+        app.controller.stop()
+        assert not app.controller._running
+        assert app.controller._thread is None
+        assert app.controller._stream is None
+
     dev.close()

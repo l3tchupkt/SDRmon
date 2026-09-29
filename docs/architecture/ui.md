@@ -26,10 +26,12 @@ The SDRmon UI is strictly a consumer of the underlying Python SDR SDK. It is bui
               SpectrumAnalyzer
                      ▼
               SpectrumResult
-                     ▼
+                     │
              UI Message Queue
-                     ▼
-                   TUI
+                     │
+          ┌──────────┴──────────┐
+          │                     │
+    SpectrumWidget        WaterfallWidget
 ```
 
 ## Threading & Streaming
