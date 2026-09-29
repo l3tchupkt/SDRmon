@@ -26,6 +26,7 @@ class SpectrumWidget(Widget):
 
     min_power: reactive[float] = reactive(-100.0)
     max_power: reactive[float] = reactive(0.0)
+    zoom: reactive[float] = reactive(1.0)
 
     DEFAULT_CSS = """
     SpectrumWidget {
@@ -81,6 +82,12 @@ class SpectrumWidget(Widget):
 
         # Downsample the frequency data to terminal width
         power = self.result.power
+        # Apply zoom: show only the center portion
+        if self.zoom > 1.0:
+            n = len(power)
+            keep = max(1, int(n / self.zoom))
+            start = (n - keep) // 2
+            power = power[start : start + keep]
         n_bins = len(power)
         if n_bins == 0:
             return Strip([Segment(" " * width)])

@@ -1,5 +1,7 @@
 """
 Main CLI application for SDRmon.
+
+When called with no subcommand, launches the full interactive TUI.
 """
 
 import argparse
@@ -8,12 +10,14 @@ import sys
 
 from sdrmon import __version__
 from sdrmon.backends import initialize_backends
-from sdrmon.cli import devices, info
 
 
-def main():
+def main() -> None:
     initialize_backends()
-    parser = argparse.ArgumentParser(description="SDRmon - Terminal-first SDR toolkit")
+    parser = argparse.ArgumentParser(
+        description="SDRmon — Terminal-first SDR monitor",
+        epilog="Run without arguments to launch the interactive application.",
+    )
     parser.add_argument("--version", action="version", version=f"SDRmon {__version__}")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
 
@@ -21,68 +25,81 @@ def main():
 
     # Devices command
     devices_parser = subparsers.add_parser("devices", help="List connected SDR devices")
-    devices.setup_parser(devices_parser)
+    from sdrmon.cli import devices as _devices_mod
+
+    _devices_mod.setup_parser(devices_parser)
 
     # Info command
     info_parser = subparsers.add_parser(
         "info", help="Show information about a specific device"
     )
-    info.setup_parser(info_parser)
+    from sdrmon.cli import info as _info_mod
 
-    # Monitor command
-    monitor_parser = subparsers.add_parser("monitor", help="Start the main TUI monitor")
-    from sdrmon.cli import monitor
+    _info_mod.setup_parser(info_parser)
 
-    monitor.setup_parser(monitor_parser)
+    # Monitor command (explicit TUI, preserves backwards compat)
+    monitor_parser = subparsers.add_parser(
+        "monitor", help="Start the main TUI monitor (equivalent to sdrmon with no args)"
+    )
+    from sdrmon.cli import monitor as _monitor_mod
+
+    _monitor_mod.setup_parser(monitor_parser)
 
     # Capture command
     capture_parser = subparsers.add_parser("capture", help="Capture IQ to a file")
-    from sdrmon.cli import capture
+    from sdrmon.cli import capture as _capture_mod
 
-    capture.setup_parser(capture_parser)
+    _capture_mod.setup_parser(capture_parser)
 
     # Platform command
     platform_parser = subparsers.add_parser(
         "platform", help="Show environment diagnostics"
     )
-    from sdrmon.cli import platform
+    from sdrmon.cli import platform as _platform_mod
 
-    platform.setup_parser(platform_parser)
+    _platform_mod.setup_parser(platform_parser)
 
-    # Other placeholders
-    # spectrum_parser = subparsers.add_parser("spectrum", help="Start the spectrum TUI")
     # Scan command
     scan_parser = subparsers.add_parser("scan", help="Scan a frequency range")
-    from sdrmon.cli import scan
+    from sdrmon.cli import scan as _scan_mod
 
-    scan.setup_parser(scan_parser)
+    _scan_mod.setup_parser(scan_parser)
 
+    # Replay command
     replay_parser = subparsers.add_parser("replay", help="Replay a captured IQ file")
-    from sdrmon.cli import replay
+    from sdrmon.cli import replay as _replay_mod
 
-    replay.setup_parser(replay_parser)
+    _replay_mod.setup_parser(replay_parser)
 
     args = parser.parse_args()
 
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
     else:
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.WARNING)
 
-    if getattr(args, "command", None) == "devices":
-        devices.run(args)
-    elif getattr(args, "command", None) == "info":
-        info.run(args)
-    elif getattr(args, "command", None) == "monitor":
-        monitor.run(args)
-    elif getattr(args, "command", None) == "capture":
-        capture.run(args)
-    elif getattr(args, "command", None) == "scan":
-        scan.run(args)
-    elif getattr(args, "command", None) == "platform":
-        platform.run(args)
-    elif getattr(args, "command", None) == "replay":
-        replay.run(args)
+    cmd = getattr(args, "command", None)
+
+    if cmd is None:
+        # ── Default: launch the interactive terminal application ──────────
+        from sdrmon.ui.app import start_tui
+
+        start_tui()
+
+    elif cmd == "devices":
+        _devices_mod.run(args)
+    elif cmd == "info":
+        _info_mod.run(args)
+    elif cmd == "monitor":
+        _monitor_mod.run(args)
+    elif cmd == "capture":
+        _capture_mod.run(args)
+    elif cmd == "scan":
+        _scan_mod.run(args)
+    elif cmd == "platform":
+        _platform_mod.run(args)
+    elif cmd == "replay":
+        _replay_mod.run(args)
     else:
         parser.print_help()
         sys.exit(1)

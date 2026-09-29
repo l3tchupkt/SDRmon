@@ -49,7 +49,7 @@ class Scanner:
         self._running = True
         self._cancel_event.clear()
 
-        started_at = time.time()
+
 
         analyzer = SpectrumAnalyzer(fft_size=config.fft_size, window="hann")
         stream_config = StreamConfig(

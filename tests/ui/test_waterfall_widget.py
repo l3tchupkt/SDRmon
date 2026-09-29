@@ -14,7 +14,7 @@ class DummyApp(App):
 @pytest.mark.asyncio
 async def test_waterfall_widget_empty():
     app = DummyApp()
-    async with app.run_test() as pilot:
+    async with app.run_test():
         widget = app.query_one(WaterfallWidget)
 
         # Buffer should not be allocated until there's size and data

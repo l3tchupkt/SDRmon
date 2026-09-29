@@ -114,3 +114,15 @@ class ScannerWidget(Widget):
         self.query_one("#lbl-scanned", Label).update(
             f"Scanned: {self.scanned_count}/{self.total_steps}"
         )
+
+    def clear_results(self) -> None:
+        """Reset the scanner table and progress."""
+        self.active_count = 0
+        self.scanned_count = 0
+        self.progress = 0.0
+        table = self.query_one(DataTable)
+        table.clear()
+        pb = self.query_one(ProgressBar)
+        pb.progress = 0
+        self.query_one("#lbl-active", Label).update("Active: 0")
+        self.query_one("#lbl-scanned", Label).update("Scanned: 0/0")
