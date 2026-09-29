@@ -15,7 +15,7 @@ try:
     import adi  # noqa: F401  # type: ignore
 
     HAVE_PLUTO = True
-except ImportError:
+except Exception:
     HAVE_PLUTO = False
 
 
