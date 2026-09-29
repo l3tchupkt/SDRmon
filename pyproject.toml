@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sdrmon"
+version = "0.1.0"
+description = "A terminal-first SDR monitoring and analysis toolkit for Python."
+readme = "README.md"
+authors = [
+    { name = "letchupkt" }
+]
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24.0",
+    "textual>=0.50.0",
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+rtlsdr = ["pyrtlsdr>=0.3.0"]
+hackrf = ["libhackrf>=0.1"]
+
+[project.scripts]
+sdrmon = "sdrmon.cli.app:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sdrmon"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers"
+pythonpath = ["src"]
+testpaths = [
+    "tests",
+]
+markers = [
+    "hardware: marks tests as requiring real SDR hardware to be connected (deselect with '-m \"not hardware\"')",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = []
+
+[tool.pyright]
+include = ["src"]
+typeCheckingMode = "standard"
