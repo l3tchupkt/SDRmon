@@ -10,7 +10,14 @@ def compute_fft(
     samples: NDArray[np.complex64], window: NDArray[np.float32] | None = None
 ) -> NDArray[np.complex64]:
     """Compute the FFT of complex IQ samples."""
+    if len(samples) == 0:
+        raise ValueError("Cannot compute FFT of empty array")
+    if np.any(np.isnan(samples)) or np.any(np.isinf(samples)):
+        raise ValueError("Input contains NaN or Inf")
+
     if window is not None:
+        if len(samples) != len(window):
+            raise ValueError("Window size must match samples size")
         samples = samples * window
 
     # Compute FFT and shift zero-frequency component to center
@@ -28,6 +35,8 @@ def compute_power_spectrum(
     Takes into account the window coherent gain if window_sum_sq is provided.
     """
     N = len(fft_data)
+    if N == 0:
+        raise ValueError("Cannot compute power spectrum of empty array")
 
     # Calculate magnitude squared
     mag_sq = np.abs(fft_data) ** 2

@@ -23,6 +23,16 @@ pip install sdrmon
 sdrmon
 ```
 
+## Platform Support
+
+SDRmon's core SDK is designed to run on Windows, Linux, and macOS.
+
+The software-only development workflow requires no SDR hardware:
+
+FakeSDR → DSP → Capture → Replay
+
+Physical SDR support depends on the operating system and vendor/device backend (e.g., RTL-SDR, HackRF, PlutoSDR). You can run `sdrmon platform` to check your environment and available backends.
+
 ## Python SDK & Software-Only Workflow
 
 SDRmon is not just a terminal application; it is a powerful Python SDR SDK. You can develop and test SDRmon without owning an physical SDR. The `FakeSDR` device procedurally generates RF signals, and `IQReplay` can loop over saved captures.

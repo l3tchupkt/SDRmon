@@ -80,7 +80,11 @@ class PlutoDevice(SDRDevice):
 
     def open(self) -> None:
         if not HAVE_PLUTO:
-            raise RuntimeError("adi library is not installed.")
+            from sdrmon.errors import BackendUnavailableError
+
+            raise BackendUnavailableError(
+                "adi library is not installed. Install with `pip install sdrmon[pluto]`."
+            )
         # self._sdr = adi.Pluto(self._info.serial)
 
     def close(self) -> None:

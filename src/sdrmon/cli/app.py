@@ -41,6 +41,14 @@ def main():
 
     capture.setup_parser(capture_parser)
 
+    # Platform command
+    platform_parser = subparsers.add_parser(
+        "platform", help="Show environment diagnostics"
+    )
+    from sdrmon.cli import platform
+
+    platform.setup_parser(platform_parser)
+
     # Other placeholders
     # spectrum_parser = subparsers.add_parser("spectrum", help="Start the spectrum TUI")
     # Scan command
@@ -68,6 +76,8 @@ def main():
         capture.run(args)
     elif getattr(args, "command", None) == "scan":
         scan.run(args)
+    elif getattr(args, "command", None) == "platform":
+        platform.run(args)
     else:
         parser.print_help()
         sys.exit(1)

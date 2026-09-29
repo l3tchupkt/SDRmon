@@ -112,7 +112,13 @@ class ReplayStream(IQStream):
 
         # Simulate timing
         if self.rate_control:
-            time.sleep(len(samples) / self.meta.sample_rate)
+            self._samples_read += len(samples)
+            target_time = self._start_time + (
+                self._samples_read / self.meta.sample_rate
+            )
+            now = time.monotonic()
+            if target_time > now:
+                time.sleep(target_time - now)
 
         block = IQBlock(
             samples=samples,
@@ -127,6 +133,8 @@ class ReplayStream(IQStream):
 
     def start(self) -> None:
         self._running = True
+        self._start_time = time.monotonic()
+        self._samples_read = 0
 
     def stop(self) -> None:
         self._running = False

@@ -45,3 +45,40 @@ def test_spectrum_analyzer_tone_detection():
 
     assert result.peak_frequency is not None
     assert abs(result.peak_frequency - expected_peak) <= tolerance
+
+
+def test_spectrum_analyzer_edge_cases():
+    analyzer = SpectrumAnalyzer(fft_size=2048, window="hann")
+    import numpy as np
+    from sdrmon.core.samples import IQBlock
+    import time
+
+    # Test empty samples
+    block_empty = IQBlock(
+        samples=np.array([], dtype=np.complex64),
+        sample_rate=2_000_000,
+        center_frequency=100_000_000,
+        gain=0.0,
+        timestamp=time.time(),
+        sequence_number=0,
+    )
+
+    # Analyzer should pad it to 2048 with zeros, and it shouldn't crash
+    result = analyzer.process(block_empty)
+    assert len(result.frequencies) == 2048
+    assert len(result.power) == 2048
+
+    # Test NaN samples
+    samples_nan = np.full(2048, np.nan, dtype=np.complex64)
+    block_nan = IQBlock(
+        samples=samples_nan,
+        sample_rate=2_000_000,
+        center_frequency=100_000_000,
+        gain=0.0,
+        timestamp=time.time(),
+        sequence_number=0,
+    )
+    import pytest
+
+    with pytest.raises(ValueError, match="NaN"):
+        analyzer.process(block_nan)

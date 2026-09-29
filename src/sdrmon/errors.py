@@ -45,6 +45,12 @@ class BackendError(SDRmonError):
     pass
 
 
+class BackendUnavailableError(BackendError):
+    """Raised when a requested backend is unavailable (e.g., missing dependencies)."""
+
+    pass
+
+
 class CaptureError(SDRmonError):
     """Raised when an error occurs during capture."""
 

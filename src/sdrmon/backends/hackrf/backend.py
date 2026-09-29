@@ -81,7 +81,11 @@ class HackRFDevice(SDRDevice):
 
     def open(self) -> None:
         if not HAVE_HACKRF:
-            raise RuntimeError("libhackrf is not installed.")
+            from sdrmon.errors import BackendUnavailableError
+
+            raise BackendUnavailableError(
+                "libhackrf is not installed. Install with `pip install sdrmon[hackrf]`."
+            )
         # self._sdr = HackRF()
 
     def close(self) -> None:

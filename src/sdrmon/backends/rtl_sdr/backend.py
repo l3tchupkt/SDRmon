@@ -106,7 +106,11 @@ class RtlSdrDevice(SDRDevice):
 
     def open(self) -> None:
         if not HAVE_RTLSDR:
-            raise RuntimeError("pyrtlsdr is not installed.")
+            from sdrmon.errors import BackendUnavailableError
+
+            raise BackendUnavailableError(
+                "pyrtlsdr is not installed. Install with `pip install sdrmon[rtlsdr]`."
+            )
 
         # Open by serial if available, otherwise by index
         if self._info.serial:
