@@ -3,9 +3,8 @@ Capabilities model for SDRmon.
 """
 
 from dataclasses import dataclass
-
-
 from typing import List, Optional
+
 
 @dataclass(frozen=True)
 class Capabilities:

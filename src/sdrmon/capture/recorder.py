@@ -6,8 +6,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import BinaryIO
 
-import numpy as np
-
 from sdrmon.capture.metadata import CaptureMetadata
 from sdrmon.core.device import DeviceInfo
 from sdrmon.core.samples import IQBlock
@@ -58,6 +56,7 @@ class IQRecorder:
 
         if self._meta:
             from dataclasses import replace
+
             # Calculate final duration
             duration = self._samples_written / self._meta.sample_rate
             self._meta = replace(self._meta, duration=duration)

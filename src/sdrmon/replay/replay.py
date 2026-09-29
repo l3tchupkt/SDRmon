@@ -20,13 +20,25 @@ from sdrmon.core.stream import IQStream
 class IQReplay(IQStream):
     """Standalone IQ file replayer."""
 
-    def __init__(self, iq_path: str | Path, block_size: int = 8192):
+    def __init__(
+        self,
+        iq_path: str | Path,
+        block_size: int = 8192,
+        loop: bool = False,
+        rate_control: bool = False,
+    ):
         self.iq_path = Path(iq_path)
         if self.iq_path.suffix != ".iq":
             raise ValueError("Replay path must end with .iq")
         self.json_path = self.iq_path.with_suffix(".json")
         self.meta = CaptureMetadata.load(self.json_path)
-        self._stream = ReplayStream(self.iq_path, self.meta, block_size=block_size)
+        self._stream = ReplayStream(
+            self.iq_path,
+            self.meta,
+            block_size=block_size,
+            loop=loop,
+            rate_control=rate_control,
+        )
 
     def start(self) -> None:
         self._stream.start()
@@ -59,15 +71,23 @@ class IQReplay(IQStream):
         self._stream.__exit__(exc_type, exc_val, exc_tb)
 
 
-
 class ReplayStream(IQStream):
     """Streams data from an IQ file."""
 
-    def __init__(self, iq_path: Path, meta: CaptureMetadata, block_size: int = 8192):
+    def __init__(
+        self,
+        iq_path: Path,
+        meta: CaptureMetadata,
+        block_size: int = 8192,
+        loop: bool = False,
+        rate_control: bool = False,
+    ):
         self.iq_path = iq_path
         self.meta = meta
         self.block_size = block_size
-        self._running = True
+        self.loop = loop
+        self.rate_control = rate_control
+        self._running = False
         self._seq = 0
         self._file = open(self.iq_path, "rb")
 
@@ -78,13 +98,21 @@ class ReplayStream(IQStream):
         # Read block_size complex samples (each sample is 2x float32 = 8 bytes)
         raw_data = self._file.read(self.block_size * 8)
         if not raw_data:
-            self._running = False
-            raise StopIteration()
+            if self.loop:
+                self._file.seek(0)
+                raw_data = self._file.read(self.block_size * 8)
+                if not raw_data:
+                    self._running = False
+                    raise StopIteration()
+            else:
+                self._running = False
+                raise StopIteration()
 
         samples = np.frombuffer(raw_data, dtype=np.complex64)
 
         # Simulate timing
-        time.sleep(len(samples) / self.meta.sample_rate)
+        if self.rate_control:
+            time.sleep(len(samples) / self.meta.sample_rate)
 
         block = IQBlock(
             samples=samples,
@@ -107,6 +135,10 @@ class ReplayStream(IQStream):
 
     def close(self) -> None:
         self.stop()
+
+    def __iter__(self):
+        self.start()
+        return self
 
     def __next__(self) -> IQBlock:
         return self.read()

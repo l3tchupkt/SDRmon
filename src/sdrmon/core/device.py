@@ -4,8 +4,8 @@ Device abstraction for SDRmon.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-
 from typing import TYPE_CHECKING
+
 from sdrmon.core.capabilities import Capabilities
 from sdrmon.core.stream import IQStream
 

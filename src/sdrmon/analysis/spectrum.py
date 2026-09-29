@@ -9,8 +9,9 @@ from numpy.typing import NDArray
 
 from sdrmon.core.samples import IQBlock
 from sdrmon.dsp.fft import compute_fft, compute_power_spectrum
-from sdrmon.dsp.peak import detect_peak
 from sdrmon.dsp.noise import estimate_noise_floor
+from sdrmon.dsp.peak import detect_peak
+
 
 @dataclass(frozen=True)
 class SpectrumResult:
@@ -19,6 +20,7 @@ class SpectrumResult:
     peak_frequency: float | None
     peak_power: float | None
     noise_floor: float | None
+
 
 class SpectrumAnalyzer:
     """High-level analyzer for processing IQ streams into spectrum data."""

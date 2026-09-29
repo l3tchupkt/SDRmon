@@ -18,31 +18,46 @@ from sdrmon.core.stream import IQStream
 class SyntheticStream(IQStream):
     """A stream that generates synthetic IQ data."""
 
-    def __init__(self, sample_rate: int, center_frequency: int, block_size: int = 8192):
+    def __init__(
+        self,
+        sample_rate: int,
+        center_frequency: int,
+        block_size: int = 8192,
+        seed: int | None = None,
+        max_blocks: int | None = None,
+        tone_offset: float = 100_000,
+        noise_power: float = 0.1,
+    ):
         self.sample_rate = sample_rate
         self.center_frequency = center_frequency
         self.block_size = block_size
-        self._running = True
+        self.max_blocks = max_blocks
+        self.tone_offset = tone_offset
+        self.noise_power = noise_power
+        self._rng = (
+            np.random.RandomState(seed) if seed is not None else np.random.RandomState()
+        )
+        self._running = False
         self._seq = 0
 
     def read(self) -> IQBlock:
         if not self._running:
-            raise StopIteration()
+            raise StopIteration("Stream is not running")
 
-        # Simulate time passing to match the sample rate
-        time.sleep(self.block_size / self.sample_rate)
-
-        # Generate some noise + a tone
-        t = np.arange(self.block_size) / self.sample_rate
-        tone_freq = 100_000  # 100 kHz tone
+        if self.max_blocks is not None and self._seq >= self.max_blocks:
+            self._running = False
+            raise StopIteration("Max blocks reached")
 
         # Complex tone: exp(j * 2 * pi * f * t)
-        signal = np.exp(1j * 2 * np.pi * tone_freq * t).astype(np.complex64)
+        t = (
+            np.arange(self.block_size) + self._seq * self.block_size
+        ) / self.sample_rate
+        signal = np.exp(1j * 2 * np.pi * self.tone_offset * t)
 
         # Add noise
         noise = (
-            np.random.randn(self.block_size) + 1j * np.random.randn(self.block_size)
-        ) * 0.1
+            self._rng.randn(self.block_size) + 1j * self._rng.randn(self.block_size)
+        ) * self.noise_power
         samples = (signal + noise).astype(np.complex64)
 
         block = IQBlock(
@@ -65,6 +80,10 @@ class SyntheticStream(IQStream):
     def close(self) -> None:
         self.stop()
 
+    def __iter__(self):
+        self.start()
+        return self
+
     def __next__(self) -> IQBlock:
         return self.read()
 
@@ -84,12 +103,19 @@ class SyntheticStream(IQStream):
 class FakeSDRDevice(SDRDevice):
     """A fake SDR device that produces synthetic streams."""
 
-    def __init__(self, info: DeviceInfo):
+    def __init__(
+        self,
+        info: DeviceInfo,
+        seed: int | None = None,
+        max_blocks: int | None = None,
+    ):
         self._info = info
+        self.seed = seed
+        self.max_blocks = max_blocks
         self._freq = 100_000_000
         self._rate = 2_000_000
         self._gain = 0.0
-        self._stream = None
+        self._stream: SyntheticStream | None = None
         self._is_open = False
 
     @property
@@ -139,7 +165,12 @@ class FakeSDRDevice(SDRDevice):
             self.set_sample_rate(config.sample_rate)
             if config.gain is not None:
                 self.set_gain(config.gain)
-        self._stream = SyntheticStream(self._rate, self._freq)
+        self._stream = SyntheticStream(
+            sample_rate=self._rate,
+            center_frequency=self._freq,
+            seed=self.seed,
+            max_blocks=self.max_blocks,
+        )
         return self._stream
 
 

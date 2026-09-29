@@ -35,7 +35,7 @@ class SDRManager:
         if device_info is not None:
             backend = backend_registry.get_backend(device_info.driver)
             return backend.open(device_info)
-        
+
         devices = SDRManager.discover()
         for d in devices:
             if driver is not None and d.driver != driver:
@@ -44,7 +44,7 @@ class SDRManager:
                 continue
             backend = backend_registry.get_backend(d.driver)
             return backend.open(d)
-            
+
         raise DeviceNotFoundError("No matching SDR device found.")
 
     @staticmethod

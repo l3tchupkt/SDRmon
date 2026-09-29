@@ -41,13 +41,10 @@ def test_replay_backend(tmp_path: Path):
     assert dev.info.product.startswith("Replay")
     assert not dev.capabilities.frequency
 
-    stream = dev.stream()
+    with dev.stream() as stream:
+        # Read block
+        block = next(stream)
+        assert block.sample_rate == 10_000
+        assert block.center_frequency == 100_000
 
-    # Read block
-    block = next(stream)
-    assert block.sample_rate == 10_000
-    assert block.center_frequency == 100_000
-
-    # Cleanup
-    stream.close()
     dev.close()

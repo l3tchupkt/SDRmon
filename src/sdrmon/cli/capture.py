@@ -6,7 +6,6 @@ import argparse
 import time
 from pathlib import Path
 
-from sdrmon.capture.metadata import CaptureMetadata
 from sdrmon.cli.monitor import parse_freq
 from sdrmon.core.device import DeviceInfo
 from sdrmon.devices.manager import SDRManager
@@ -51,8 +50,8 @@ def run(args: argparse.Namespace) -> None:
         console.print("[red]Invalid frequency or sample rate format.[/red]")
         return
 
-    from sdrmon.core.settings import StreamConfig
     from sdrmon.capture.recorder import IQRecorder
+    from sdrmon.core.settings import StreamConfig
 
     config = StreamConfig(
         frequency=freq,
@@ -64,7 +63,7 @@ def run(args: argparse.Namespace) -> None:
     stream = dev.stream(config)
 
     start_t = time.time()
-    
+
     out_path = Path(args.output)
     meta_path = out_path.with_suffix(".json")
 
@@ -81,4 +80,3 @@ def run(args: argparse.Namespace) -> None:
     dev.close()
 
     console.print(f"[green]Capture saved to {out_path} and {meta_path}[/green]")
-
