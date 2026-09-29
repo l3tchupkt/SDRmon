@@ -5,13 +5,22 @@ Startup screen — device discovery and selection.
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Center, Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, ListItem, ListView, Static
 
 from sdrmon.core.device import DeviceInfo
 from sdrmon.devices.manager import SDRManager
 from sdrmon.ui.components import DEVICE_SHORTCUTS, AppMode, SDRmonFooter, SDRmonHeader
+
+LOGO_ART = """\
+[#00b0ff]
+  ██████  ██████  ██████  ███    ███  ██████  ███    ██ 
+ ██       ██   ██ ██   ██ ████  ████ ██    ██ ████   ██ 
+ ██   ███ ██   ██ ██████  ██ ████ ██ ██    ██ ██ ██  ██ 
+ ██    ██ ██   ██ ██   ██ ██  ██  ██ ██    ██ ██  ██ ██ 
+  ██████  ██████  ██   ██ ██      ██  ██████  ██   ████ 
+[/#00b0ff]"""
 
 # ── Device list item ─────────────────────────────────────────────────────────
 
@@ -37,24 +46,24 @@ class DeviceEntry:
 def _build_entries(devices: list[DeviceInfo]) -> list[DeviceEntry]:
     entries: list[DeviceEntry] = []
     for d in devices:
-        serial_part = f"  Serial: {d.serial}" if d.serial else ""
+        serial_part = f" / {d.serial}" if d.serial else ""
         sub = f"{d.driver}{serial_part}"
         entries.append(DeviceEntry(info=d, label=f"{d.vendor} {d.product}", sub=sub))
-    # Always offer FakeSDR
+
     entries.append(
         DeviceEntry(
             info=None,
             label="FakeSDR",
-            sub="Synthetic signal generator (no hardware required)",
+            sub="Synthetic signal source",
             is_fake=True,
         )
     )
-    # Always offer Replay
+
     entries.append(
         DeviceEntry(
             info=None,
-            label="Replay Capture",
-            sub="Open a previously recorded .iq file",
+            label="Replay",
+            sub="IQ capture",
             is_replay=True,
         )
     )
@@ -62,8 +71,8 @@ def _build_entries(devices: list[DeviceInfo]) -> list[DeviceEntry]:
 
 
 def _make_list_item(entry: DeviceEntry, idx: int) -> ListItem:
-    icon = "●" if not (entry.is_fake or entry.is_replay) else "○"
-    label_text = f"[bold]{icon} {entry.label}[/bold]\n[#546e7a]  {entry.sub}[/#546e7a]"
+    # Use a clean single line to match the mock
+    label_text = f" [bold]{entry.label:<12}[/bold] [#546e7a]· {entry.sub}[/#546e7a]"
     return ListItem(Static(label_text), id=f"dev-item-{idx}")
 
 
@@ -84,67 +93,88 @@ class StartupScreen(Screen):
     def __init__(self) -> None:
         super().__init__()
         self._entries: list[DeviceEntry] = []
-        self._physical_count = 0
 
     def compose(self) -> ComposeResult:
-        yield SDRmonHeader(id="startup-header")
-        with Vertical(id="startup-body"):
-            yield Static(
-                "[bold #00b0ff]  SDRmon[/bold #00b0ff]  "
-                "[#546e7a]Terminal SDR Monitor[/#546e7a]",
-                id="startup-logo",
-            )
-            yield Static("", id="startup-status")
-            yield ListView(id="device-list")
-            with Horizontal(id="startup-buttons"):
-                yield Button("Start", id="btn-start", variant="primary")
-                yield Button("FakeSDR", id="btn-fake")
-                yield Button("Replay…", id="btn-replay")
-                yield Button("Refresh", id="btn-refresh")
-                yield Button("Quit", id="btn-quit", variant="error")
-        hdr = SDRmonFooter(id="startup-footer")
-        hdr.shortcuts = DEVICE_SHORTCUTS
+        hdr = SDRmonHeader(id="startup-header")
+        hdr.device_name = "v0.1.0"
         yield hdr
+
+        with Vertical(id="startup-body"):
+            with Vertical(id="startup-center"):
+                yield Static(LOGO_ART, id="startup-logo")
+
+                with Center():
+                    yield Static(
+                        "[bold]Terminal SDR Monitor[/bold]", id="startup-subtitle"
+                    )
+                with Center():
+                    yield Static(
+                        "Select an SDR interface to begin", id="startup-status"
+                    )
+
+                yield ListView(id="device-list")
+
+                with Horizontal(id="startup-buttons"):
+                    yield Button("START", id="btn-start", variant="primary")
+                    yield Button("REFRESH", id="btn-refresh")
+                    yield Button("QUIT", id="btn-quit", variant="error")
+
+        ftr = SDRmonFooter(id="startup-footer")
+        ftr.shortcuts = DEVICE_SHORTCUTS
+        yield ftr
 
     DEFAULT_CSS = """
     StartupScreen {
         background: #0a0e14;
     }
     #startup-body {
-        margin: 1 4;
+        align: center middle;
+        height: 1fr;
+    }
+    #startup-center {
+        width: 70;
+        height: auto;
+        align: center top;
     }
     #startup-logo {
-        height: 2;
-        margin-bottom: 1;
+        text-align: center;
+        margin-bottom: 2;
+    }
+    #startup-subtitle {
         color: #eceff1;
+        margin-bottom: 1;
     }
     #startup-status {
-        height: 1;
         color: #546e7a;
-        margin-bottom: 1;
+        margin-bottom: 2;
     }
     ListView {
-        height: 1fr;
-        border: solid #1e88e5;
+        width: 100%;
+        height: auto;
+        min-height: 5;
+        max-height: 10;
+        border: round #1e88e5;
         background: #131920;
-        margin-bottom: 1;
+        margin-bottom: 2;
     }
     ListItem {
-        padding: 1;
-        height: 4;
+        padding: 0 2;
+        height: 1;
     }
     ListItem.--highlight {
         background: #1a2332;
     }
     ListItem > Static {
-        height: auto;
+        height: 1;
     }
     #startup-buttons {
+        width: 100%;
         height: 3;
-        margin-top: 1;
+        align: center middle;
     }
     Button {
-        margin-right: 1;
+        min-width: 14;
+        margin: 0 2;
     }
     """
 
@@ -161,7 +191,6 @@ class StartupScreen(Screen):
         except Exception:
             physical = []
 
-        self._physical_count = len(physical)
         self._entries = _build_entries(physical)
 
         lv = self.query_one("#device-list", ListView)
@@ -169,16 +198,7 @@ class StartupScreen(Screen):
         for idx, entry in enumerate(self._entries):
             lv.append(_make_list_item(entry, idx))
 
-        if physical:
-            status.update(
-                f"[#00e676]{len(physical)} device(s) found.[/#00e676]  "
-                "Select a device and press Enter or [Start]."
-            )
-        else:
-            status.update(
-                "[#546e7a]No physical SDR devices detected. "
-                "Use FakeSDR or Replay.[/#546e7a]"
-            )
+        status.update("[#546e7a]Select an SDR interface to begin[/#546e7a]")
 
         if lv.children:
             lv.index = 0
@@ -193,10 +213,6 @@ class StartupScreen(Screen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-start":
             self.action_open_selected()
-        elif event.button.id == "btn-fake":
-            self.action_use_fake()
-        elif event.button.id == "btn-replay":
-            self.action_use_replay()
         elif event.button.id == "btn-refresh":
             self.action_refresh()
         elif event.button.id == "btn-quit":
