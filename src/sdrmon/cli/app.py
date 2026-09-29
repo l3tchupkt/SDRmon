@@ -57,7 +57,10 @@ def main():
 
     scan.setup_parser(scan_parser)
 
-    # replay_parser = subparsers.add_parser("replay", help="Replay a captured IQ file")
+    replay_parser = subparsers.add_parser("replay", help="Replay a captured IQ file")
+    from sdrmon.cli import replay
+
+    replay.setup_parser(replay_parser)
 
     args = parser.parse_args()
 
@@ -78,6 +81,8 @@ def main():
         scan.run(args)
     elif getattr(args, "command", None) == "platform":
         platform.run(args)
+    elif getattr(args, "command", None) == "replay":
+        replay.run(args)
     else:
         parser.print_help()
         sys.exit(1)

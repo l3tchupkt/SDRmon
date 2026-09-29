@@ -32,6 +32,7 @@ class IQReplay(IQStream):
             raise ValueError("Replay path must end with .iq")
         self.json_path = self.iq_path.with_suffix(".json")
         self.meta = CaptureMetadata.load(self.json_path)
+        self.meta.validate()
         self._stream = ReplayStream(
             self.iq_path,
             self.meta,
@@ -123,7 +124,7 @@ class ReplayStream(IQStream):
         block = IQBlock(
             samples=samples,
             sample_rate=self.meta.sample_rate,
-            center_frequency=self.meta.frequency,
+            center_frequency=self.meta.center_frequency,
             gain=self.meta.gain,
             timestamp=time.time(),
             sequence_number=self._seq,
@@ -140,6 +141,10 @@ class ReplayStream(IQStream):
         self._running = False
         if not self._file.closed:
             self._file.close()
+
+    @property
+    def position(self) -> int:
+        return getattr(self, "_samples_read", 0)
 
     def close(self) -> None:
         self.stop()
@@ -173,6 +178,8 @@ class ReplayDevice(SDRDevice):
         self.meta = meta
         self._is_open = False
         self._stream = None
+        self.loop = False
+        self.rate_control = False
 
     @property
     def info(self) -> DeviceInfo:
@@ -199,7 +206,7 @@ class ReplayDevice(SDRDevice):
         pass  # Ignored in replay
 
     def get_frequency(self) -> int:
-        return self.meta.frequency
+        return self.meta.center_frequency
 
     def set_sample_rate(self, sample_rate: int) -> None:
         pass  # Ignored in replay
@@ -216,7 +223,9 @@ class ReplayDevice(SDRDevice):
     def stream(self, config: "StreamConfig | None" = None) -> IQStream:
         if not self._is_open:
             raise RuntimeError("Device is not open")
-        self._stream = ReplayStream(self.iq_path, self.meta)
+        self._stream = ReplayStream(
+            self.iq_path, self.meta, loop=self.loop, rate_control=self.rate_control
+        )
         return self._stream
 
 
@@ -255,6 +264,7 @@ class ReplayBackend(SDRBackend):
             raise ValueError("Serial number is required for ReplayDevice.")
         json_path = Path(device_info.serial)
         meta = CaptureMetadata.load(json_path)
+        meta.validate()
         # Assume .iq file has same stem
         iq_path = json_path.with_suffix(".iq")
 

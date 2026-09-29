@@ -7,6 +7,7 @@ import time
 from typing import Optional
 
 from sdrmon.analysis.spectrum import SpectrumAnalyzer
+from sdrmon.capture.recorder import IQRecorder
 from sdrmon.core.device import SDRDevice
 from sdrmon.core.settings import StreamConfig
 from sdrmon.core.stream import IQStream
@@ -35,6 +36,7 @@ class UIController:
         self._running = False
         self._paused = False
         self._stop_event = threading.Event()
+        self.recorder: Optional[IQRecorder] = None
 
     def start(self):
         """Start the background worker."""
@@ -105,21 +107,33 @@ class UIController:
         last_update = 0.0
 
         try:
-            for block in self._stream:
-                if self._stop_event.is_set():
-                    break
+            if self._stream:
+                for block in self._stream:
+                    if self._stop_event.is_set():
+                        break
 
-                if self._paused:
-                    # Keep consuming to avoid buffer bloat, but skip processing
-                    continue
+                    if self._paused:
+                        # Keep consuming to avoid buffer bloat, but skip processing
+                        continue
 
-                now = time.monotonic()
-                if now - last_update >= min_interval:
-                    if self._analyzer:
-                        result = self._analyzer.process(block)
-                        # Push to Textual UI thread
-                        self.app.post_message(SpectrumUpdated(result))
-                    last_update = now
+                    if self.recorder:
+                        try:
+                            self.recorder.write(block)
+                        except Exception as e:
+                            # Pass error back and stop recording
+                            from sdrmon.ui.screens.capture import CaptureErrorMsg
+
+                            self.app.post_message(CaptureErrorMsg(e))
+                            self.recorder.close()
+                            self.recorder = None
+
+                    now = time.monotonic()
+                    if now - last_update >= min_interval:
+                        if self._analyzer:
+                            result = self._analyzer.process(block)
+                            # Push to Textual UI thread
+                            self.app.post_message(SpectrumUpdated(result))
+                        last_update = now
 
         except Exception as e:
             # Push error state to UI

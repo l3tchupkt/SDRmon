@@ -37,6 +37,9 @@ def run(args: argparse.Namespace) -> None:
 
     console = Console()
 
+    devices = []
+    dev = None
+
     if args.fake:
         from sdrmon.backends.generic.fake import FakeSDRDevice
 
@@ -69,6 +72,9 @@ def run(args: argparse.Namespace) -> None:
         except Exception as e:
             console.print(f"[red]Failed to open device: {e}[/red]")
             return
+
+    if not dev:
+        return
 
     freq = parse_freq(args.frequency)
     if freq:

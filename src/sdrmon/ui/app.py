@@ -6,6 +6,7 @@ from typing import Any
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, Vertical
+from textual.timer import Timer
 from textual.widgets import Footer, Header
 
 from sdrmon.core.device import SDRDevice
@@ -55,18 +56,24 @@ class SDRmonApp(App[Any]):
         ("f", "freq", "Frequency"),
         ("g", "gain", "Gain"),
         ("s", "rate", "Sample Rate"),
+        ("c", "toggle_capture", "Capture"),
         ("S", "scan", "Scanner"),
         ("w", "window", "Window"),
         ("v", "toggle_waterfall", "Waterfall"),
         ("+", "zoom_in", "Zoom In"),
         ("-", "zoom_out", "Zoom Out"),
         ("?", "help", "Help"),
+        ("r", "restart_replay", "Restart Replay"),
+        ("l", "toggle_loop", "Toggle Loop"),
     ]
 
     def __init__(self, device: SDRDevice | None = None):
         super().__init__()
         self.device = device
         self.controller: UIController | None = None
+        self._capture_timer: Timer | None = None
+        self._capture_start_time: float = 0.0
+        self._capture_duration: float | None = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -75,7 +82,10 @@ class SDRmonApp(App[Any]):
 
     def on_mount(self) -> None:
         if self.device:
-            self.title = f"SDRmon - {self.device.info.product}"
+            if self.device.info.driver == "replay":
+                self.title = f"REPLAY - {self.device.info.product}"
+            else:
+                self.title = f"LIVE - {self.device.info.product}"
 
             # Start streaming
             config = StreamConfig(
@@ -86,6 +96,9 @@ class SDRmonApp(App[Any]):
 
             self.controller = UIController(self.device, self, config)
             self.controller.start()
+            
+            if self.device.info.driver == "replay":
+                self.set_interval(1.0, self._update_replay_progress)
 
             status = self.query_one(StatusWidget)
             status.device = self.device
@@ -95,6 +108,20 @@ class SDRmonApp(App[Any]):
                 status.gain = config.gain
             status.fft_size = self.controller.fft_size
             status.window = self.controller.window
+
+    def _update_replay_progress(self) -> None:
+        if self.device and self.device.info.driver == "replay" and self.controller and hasattr(self.controller, "_stream"):
+            stream = getattr(self.controller, "_stream", None)
+            if stream and hasattr(stream, "position") and hasattr(stream, "meta"):
+                pos = getattr(stream, "position", 0)
+                meta = getattr(stream, "meta", None)
+                if meta:
+                    samples = getattr(meta, "samples", 0)
+                    if samples > 0:
+                        pct = (pos / samples) * 100
+                        self.sub_title = f"[REPLAY] {pct:.1f}% ({pos}/{samples})"
+                    else:
+                        self.sub_title = f"[REPLAY] {pos} samples"
 
     def on_unmount(self) -> None:
         if self.controller:
@@ -201,11 +228,131 @@ class SDRmonApp(App[Any]):
 
         def on_scanner_dismiss():
             # Resume background controller
-            self.controller.start()
+            if self.controller:
+                self.controller.start()
 
         self.push_screen(
             ScannerScreen(self.device, config), callback=lambda _: on_scanner_dismiss()
         )
+
+    def action_toggle_capture(self) -> None:
+        if not self.device or not self.controller:
+            return
+
+        # If already recording, stop
+        if self.controller.recorder:
+            self.controller.recorder.close()
+            self.controller.recorder = None
+            self.sub_title = ""
+            self.notify("Capture stopped.", severity="information")
+            # stop update timer
+            if self._capture_timer:
+                self._capture_timer.stop()
+            return
+
+        # Otherwise, open dialog
+        import time
+
+        from sdrmon.ui.screens.capture import CaptureScreen
+
+        def start_capture(result):
+            if not result or not self.device or not self.controller:
+                return
+
+            try:
+                from sdrmon.capture.recorder import IQRecorder
+
+                recorder = IQRecorder(result["path"], self.device.info)
+                recorder.__enter__()  # Open file
+                self.controller.recorder = recorder
+
+                # store capture state for timer
+                self._capture_start_time = time.monotonic()
+                self._capture_duration = result["duration"]
+
+                self.sub_title = f"[RECORDING to {result['path']}]"
+
+                # Start a timer to update status or auto-stop
+                if self._capture_timer:
+                    self._capture_timer.stop()
+                self._capture_timer = self.set_interval(1.0, self._check_capture)
+
+            except Exception as e:
+                self.notify(f"Failed to start capture: {e}", severity="error")
+
+        # Generate default filename
+        import datetime
+
+        now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        freq = self.controller.config.frequency
+        default_name = f"capture_{now_str}_{freq}Hz.iq"
+
+        self.push_screen(
+            CaptureScreen(default_path=default_name), callback=start_capture
+        )
+
+    def _check_capture(self) -> None:
+        if not self.controller or not self.controller.recorder:
+            return
+
+        import time
+
+        # Auto-stop if duration specified
+        if self._capture_duration is not None:
+            elapsed = time.monotonic() - self._capture_start_time
+            if elapsed >= self._capture_duration:
+                self.action_toggle_capture()
+                return
+
+        # Update status
+        written = self.controller.recorder._samples_written
+        mbytes = written * 8 / 1024 / 1024
+
+        # update title
+        path = self.controller.recorder.iq_path.name
+        self.sub_title = f"[RECORDING] {path} ({mbytes:.1f} MB)"
+
+    def on_capture_error_msg(self, message) -> None:
+        from sdrmon.ui.screens.capture import CaptureErrorMsg
+
+        if isinstance(message, CaptureErrorMsg):
+            self.notify(f"Capture error: {message.error}", severity="error")
+            if self.controller and self.controller.recorder:
+                self.controller.recorder.close()
+                self.controller.recorder = None
+            self.sub_title = "[CAPTURE ERROR]"
+            if self._capture_timer:
+                self._capture_timer.stop()
+
+    def action_restart_replay(self) -> None:
+        if self.device and self.device.info.driver == "replay" and self.controller:
+            self.controller.stop()
+            # The device keeps track of the file via the ReplayStream.
+            # We just need to stop the controller and start it again.
+            # ReplayStream will re-open the file if closed, but actually ReplayDevice creates a new ReplayStream.
+            self.controller.start()
+
+            # Reset widgets
+            spectrum = self.query_one(SpectrumWidget)
+            waterfall = self.query_one(WaterfallWidget)
+            waterfall._buffer = None
+            self.notify("Replay restarted.")
+        else:
+            self.notify("Not in replay mode.", severity="warning")
+
+    def action_toggle_loop(self) -> None:
+        if self.device and self.device.info.driver == "replay":
+            current_loop = getattr(self.device, "loop", False)
+            new_loop = not current_loop
+            setattr(self.device, "loop", new_loop)
+
+            if self.controller and hasattr(self.controller._stream, "loop"):
+                setattr(self.controller._stream, "loop", new_loop)
+
+            state = "ON" if new_loop else "OFF"
+            self.notify(f"Replay loop {state}")
+        else:
+            self.notify("Not in replay mode.", severity="warning")
 
 
 def start_tui(device: SDRDevice | None = None) -> None:

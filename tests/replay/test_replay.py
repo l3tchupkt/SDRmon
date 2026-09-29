@@ -15,13 +15,17 @@ def test_replay_backend(tmp_path: Path):
     iq_path = tmp_path / "test.iq"
 
     meta = CaptureMetadata(
-        device="fake",
-        frequency=100_000,
+        format="sdrmon-iq",
+        version=1,
+        sample_format="complex64",
         sample_rate=10_000,
+        center_frequency=100_000,
         gain=0.0,
-        format="complex64",
+        backend="fake",
+        device="fake",
         started_at="2026-09-29T12:00:00Z",
         duration=1.0,
+        samples=10000,
     )
     meta.save(json_path)
 

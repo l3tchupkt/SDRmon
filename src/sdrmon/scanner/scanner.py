@@ -121,7 +121,12 @@ class Scanner:
                         ):
                             break
 
-                    if last_result is None or self._cancel_event.is_set():
+                    if (
+                        last_result is None
+                        or linear_power_sum is None
+                        or blocks == 0
+                        or self._cancel_event.is_set()
+                    ):
                         break
 
                     # Convert back to dBFS

@@ -23,6 +23,7 @@ def setup_parser(parser: argparse.ArgumentParser) -> None:
         "--duration", type=float, required=True, help="Duration in seconds"
     )
     parser.add_argument("--output", type=str, required=True, help="Output IQ file path")
+    parser.add_argument("--fake", action="store_true", help="Use FakeSDR backend")
 
 
 def run(args: argparse.Namespace) -> None:
@@ -30,18 +31,33 @@ def run(args: argparse.Namespace) -> None:
 
     console = Console()
 
-    devices = SDRManager.discover()
+    if args.fake:
+        from sdrmon.backends.generic.fake import FakeSDRDevice
 
-    if not devices:
-        console.print("[red]No SDR devices found.[/red]")
-        return
+        dev_info = DeviceInfo(
+            driver="fake",
+            product="FakeSDR",
+            vendor="Virtual",
+            serial="1",
+            bus=None,
+            usb_pid=None,
+            usb_vid=None,
+        )
+        dev = FakeSDRDevice(dev_info, seed=42)
+        dev.open()
+    else:
+        devices = SDRManager.discover()
 
-    dev_info: DeviceInfo = devices[args.device]
-    try:
-        dev = SDRManager.open(dev_info)
-    except Exception as e:
-        console.print(f"[red]Failed to open device: {e}[/red]")
-        return
+        if not devices:
+            console.print("[red]No SDR devices found.[/red]")
+            return
+
+        dev_info: DeviceInfo = devices[args.device]
+        try:
+            dev = SDRManager.open(dev_info)
+        except Exception as e:
+            console.print(f"[red]Failed to open device: {e}[/red]")
+            return
 
     freq = parse_freq(args.frequency)
     rate = parse_freq(args.sample_rate)

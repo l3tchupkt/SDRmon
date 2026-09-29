@@ -113,8 +113,9 @@ class WaterfallWidget(Widget):
         row = normalize_power(downsampled, self.min_power, self.max_power)
 
         # Write to ring buffer
-        self._buffer[self._head, :] = row
-        self._head = (self._head + 1) % self.history_depth
+        if self._buffer is not None:
+            self._buffer[self._head, :] = row
+            self._head = (self._head + 1) % self.history_depth
 
         self.refresh()
 

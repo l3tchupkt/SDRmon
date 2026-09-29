@@ -34,14 +34,20 @@ class IQRecorder:
         if self._meta is None:
             # Initialize metadata on first block
             dev_str = self.device_info.product if self.device_info else "Unknown SDR"
+            backend_str = self.device_info.driver if self.device_info else "unknown"
+
             self._meta = CaptureMetadata(
-                device=dev_str,
-                frequency=block.center_frequency,
+                format="sdrmon-iq",
+                version=1,
+                sample_format="complex64",
                 sample_rate=block.sample_rate,
+                center_frequency=block.center_frequency,
                 gain=block.gain,
-                format="complex64",
+                backend=backend_str,
+                device=dev_str,
                 started_at=datetime.now(timezone.utc).isoformat(),
                 duration=None,
+                samples=0,
             )
 
         # Write samples
@@ -59,7 +65,9 @@ class IQRecorder:
 
             # Calculate final duration
             duration = self._samples_written / self._meta.sample_rate
-            self._meta = replace(self._meta, duration=duration)
+            self._meta = replace(
+                self._meta, duration=duration, samples=self._samples_written
+            )
             self._meta.save(self.json_path)
 
     def __exit__(
