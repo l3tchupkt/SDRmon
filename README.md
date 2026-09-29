@@ -31,6 +31,15 @@ SDRmon provides a professional Spectrum Analyzer right in your terminal. You can
 sdrmon monitor --fake
 ```
 
+## RF Scanner
+
+SDRmon includes a built-in RF scanner capable of sweeping frequency ranges, measuring peaks, and identifying occupied spectrum. 
+
+```bash
+# Sweep a frequency range and identify active signals
+sdrmon scan --fake --start 100M --stop 110M --step 250k --dwell 0.1
+```
+
 ## Platform Support
 
 SDRmon's core SDK is designed to run on Windows, Linux, and macOS.

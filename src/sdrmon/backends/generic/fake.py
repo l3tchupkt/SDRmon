@@ -26,6 +26,7 @@ class SyntheticStream(IQStream):
         seed: int | None = None,
         max_blocks: int | None = None,
         tone_offset: float = 100_000,
+        absolute_tones: list[float] | None = None,
         noise_power: float = 0.1,
     ):
         self.sample_rate = sample_rate
@@ -33,6 +34,7 @@ class SyntheticStream(IQStream):
         self.block_size = block_size
         self.max_blocks = max_blocks
         self.tone_offset = tone_offset
+        self.absolute_tones = absolute_tones or []
         self.noise_power = noise_power
         self._rng = (
             np.random.RandomState(seed) if seed is not None else np.random.RandomState()
@@ -52,7 +54,18 @@ class SyntheticStream(IQStream):
         t = (
             np.arange(self.block_size) + self._seq * self.block_size
         ) / self.sample_rate
-        signal = np.exp(1j * 2 * np.pi * self.tone_offset * t)
+
+        signal = np.zeros(self.block_size, dtype=np.complex128)
+
+        if self.absolute_tones:
+            for tone in self.absolute_tones:
+                # Calculate offset relative to center frequency
+                # Only generate if within +/- sample_rate/2
+                offset = tone - self.center_frequency
+                if abs(offset) <= self.sample_rate / 2:
+                    signal += np.exp(1j * 2 * np.pi * offset * t)
+        else:
+            signal = np.exp(1j * 2 * np.pi * self.tone_offset * t)
 
         # Add noise
         noise = (
@@ -108,10 +121,12 @@ class FakeSDRDevice(SDRDevice):
         info: DeviceInfo,
         seed: int | None = None,
         max_blocks: int | None = None,
+        absolute_tones: list[float] | None = None,
     ):
         self._info = info
         self.seed = seed
         self.max_blocks = max_blocks
+        self.absolute_tones = absolute_tones
         self._freq = 100_000_000
         self._rate = 2_000_000
         self._gain = 0.0
@@ -170,6 +185,7 @@ class FakeSDRDevice(SDRDevice):
             center_frequency=self._freq,
             seed=self.seed,
             max_blocks=self.max_blocks,
+            absolute_tones=self.absolute_tones,
         )
         return self._stream
 

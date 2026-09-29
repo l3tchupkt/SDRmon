@@ -10,7 +10,9 @@ from textual.widgets import Footer, Header
 
 from sdrmon.core.device import SDRDevice
 from sdrmon.core.settings import StreamConfig
+from sdrmon.scanner.models import ScanConfig
 from sdrmon.ui.controller import UIController
+from sdrmon.ui.screens.scanner import ScannerScreen
 from sdrmon.ui.widgets.spectrum import SpectrumUpdated, SpectrumWidget
 from sdrmon.ui.widgets.status import StatusWidget
 from sdrmon.ui.widgets.waterfall import WaterfallWidget
@@ -53,6 +55,7 @@ class SDRmonApp(App[Any]):
         ("f", "freq", "Frequency"),
         ("g", "gain", "Gain"),
         ("s", "rate", "Sample Rate"),
+        ("S", "scan", "Scanner"),
         ("w", "window", "Window"),
         ("v", "toggle_waterfall", "Waterfall"),
         ("+", "zoom_in", "Zoom In"),
@@ -175,6 +178,33 @@ class SDRmonApp(App[Any]):
     def action_help(self) -> None:
         self.notify(
             "Help modal not yet implemented in Phase 5.", severity="information"
+        )
+
+    def action_scan(self) -> None:
+        if not self.device or not self.controller:
+            return
+
+        # Pause background spectrum acquisition and stop stream so scanner can use it
+        self.controller.stop()
+
+        # Simple default scan around current frequency
+        freq = self.controller.config.frequency
+        rate = self.controller.config.sample_rate
+
+        config = ScanConfig(
+            start_frequency=freq - rate,
+            stop_frequency=freq + rate,
+            step=100_000,
+            dwell_time=0.1,
+            sample_rate=rate,
+        )
+
+        def on_scanner_dismiss():
+            # Resume background controller
+            self.controller.start()
+
+        self.push_screen(
+            ScannerScreen(self.device, config), callback=lambda _: on_scanner_dismiss()
         )
 
 
