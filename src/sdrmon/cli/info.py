@@ -46,7 +46,7 @@ def run(args: argparse.Namespace) -> None:
 
     caps_text = (
         f"[bold]Frequency tuning:[/bold] "
-        f"{'[green]Yes[/green]' if caps.frequency_tuning else '[red]No[/red]'}\n"
+        f"{'[green]Yes[/green]' if caps.frequency else '[red]No[/red]'}\n"
     )
     caps_text += (
         f"[bold]Sample rate:[/bold] "
@@ -54,11 +54,11 @@ def run(args: argparse.Namespace) -> None:
     )
     caps_text += (
         f"[bold]Gain control:[/bold] "
-        f"{'[green]Yes[/green]' if caps.gain_control else '[red]No[/red]'}\n"
+        f"{'[green]Yes[/green]' if caps.gain else '[red]No[/red]'}\n"
     )
     caps_text += (
         f"[bold]Bandwidth control:[/bold] "
-        f"{'[green]Yes[/green]' if caps.bandwidth_control else '[red]No[/red]'}\n"
+        f"{'[green]Yes[/green]' if caps.bandwidth else '[red]No[/red]'}\n"
     )
 
     console.print(

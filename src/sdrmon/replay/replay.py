@@ -13,7 +13,51 @@ from sdrmon.capture.metadata import CaptureMetadata
 from sdrmon.core.capabilities import Capabilities
 from sdrmon.core.device import DeviceInfo, SDRDevice
 from sdrmon.core.samples import IQBlock
+from sdrmon.core.settings import StreamConfig
 from sdrmon.core.stream import IQStream
+
+
+class IQReplay(IQStream):
+    """Standalone IQ file replayer."""
+
+    def __init__(self, iq_path: str | Path, block_size: int = 8192):
+        self.iq_path = Path(iq_path)
+        if self.iq_path.suffix != ".iq":
+            raise ValueError("Replay path must end with .iq")
+        self.json_path = self.iq_path.with_suffix(".json")
+        self.meta = CaptureMetadata.load(self.json_path)
+        self._stream = ReplayStream(self.iq_path, self.meta, block_size=block_size)
+
+    def start(self) -> None:
+        self._stream.start()
+
+    def read(self) -> IQBlock:
+        return self._stream.read()
+
+    def stop(self) -> None:
+        self._stream.stop()
+
+    def close(self) -> None:
+        self._stream.close()
+
+    def __iter__(self):
+        return self._stream.__iter__()
+
+    def __next__(self) -> IQBlock:
+        return self._stream.__next__()
+
+    def __enter__(self) -> "IQReplay":
+        self._stream.__enter__()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object | None,
+    ) -> None:
+        self._stream.__exit__(exc_type, exc_val, exc_tb)
+
 
 
 class ReplayStream(IQStream):
@@ -53,15 +97,22 @@ class ReplayStream(IQStream):
         self._seq += 1
         return block
 
+    def start(self) -> None:
+        self._running = True
+
     def stop(self) -> None:
         self._running = False
         if not self._file.closed:
             self._file.close()
 
+    def close(self) -> None:
+        self.stop()
+
     def __next__(self) -> IQBlock:
         return self.read()
 
     def __enter__(self) -> "ReplayStream":
+        self.start()
         return self
 
     def __exit__(
@@ -70,7 +121,7 @@ class ReplayStream(IQStream):
         exc_val: BaseException | None,
         exc_tb: object | None,
     ) -> None:
-        self.stop()
+        self.close()
 
 
 class ReplayDevice(SDRDevice):
@@ -90,10 +141,10 @@ class ReplayDevice(SDRDevice):
     @property
     def capabilities(self) -> Capabilities:
         return Capabilities(
-            frequency_tuning=False,
+            frequency=False,
             sample_rate=False,
-            gain_control=False,
-            bandwidth_control=False,
+            gain=False,
+            bandwidth=False,
         )
 
     def open(self) -> None:
@@ -101,28 +152,32 @@ class ReplayDevice(SDRDevice):
 
     def close(self) -> None:
         if self._stream:
-            self._stream.stop()
+            self._stream.close()
         self._is_open = False
 
     def set_frequency(self, frequency: int) -> None:
         pass  # Ignored in replay
 
+    def get_frequency(self) -> int:
+        return self.meta.frequency
+
     def set_sample_rate(self, sample_rate: int) -> None:
         pass  # Ignored in replay
+
+    def get_sample_rate(self) -> int:
+        return self.meta.sample_rate
 
     def set_gain(self, gain: float) -> None:
         pass  # Ignored in replay
 
-    def start_stream(self) -> IQStream:
+    def get_gain(self) -> float:
+        return self.meta.gain or 0.0
+
+    def stream(self, config: "StreamConfig | None" = None) -> IQStream:
         if not self._is_open:
             raise RuntimeError("Device is not open")
         self._stream = ReplayStream(self.iq_path, self.meta)
         return self._stream
-
-    def stop_stream(self) -> None:
-        if self._stream:
-            self._stream.stop()
-            self._stream = None
 
 
 class ReplayBackend(SDRBackend):

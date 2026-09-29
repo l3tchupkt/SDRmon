@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 
-@dataclass
+@dataclass(frozen=True)
 class CaptureMetadata:
     """Metadata describing an IQ capture."""
 

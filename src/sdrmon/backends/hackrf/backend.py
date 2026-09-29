@@ -8,6 +8,7 @@ from sdrmon.backends.base import SDRBackend
 from sdrmon.core.capabilities import Capabilities
 from sdrmon.core.device import DeviceInfo, SDRDevice
 from sdrmon.core.samples import IQBlock
+from sdrmon.core.settings import StreamConfig
 from sdrmon.core.stream import IQStream
 
 try:
@@ -30,13 +31,20 @@ class HackRFStream(IQStream):
     def read(self) -> IQBlock:
         raise NotImplementedError()
 
+    def start(self) -> None:
+        self._running = True
+
     def stop(self) -> None:
         pass
+
+    def close(self) -> None:
+        self.stop()
 
     def __next__(self) -> IQBlock:
         return self.read()
 
     def __enter__(self) -> "HackRFStream":
+        self.start()
         return self
 
     def __exit__(
@@ -45,13 +53,16 @@ class HackRFStream(IQStream):
         exc_val: BaseException | None,
         exc_tb: object | None,
     ) -> None:
-        self.stop()
+        self.close()
 
 
 class HackRFDevice(SDRDevice):
     def __init__(self, info: DeviceInfo):
         self._info = info
         self._sdr = None
+        self._freq = 0
+        self._rate = 0
+        self._gain = 0.0
 
     @property
     def info(self) -> DeviceInfo:
@@ -60,10 +71,10 @@ class HackRFDevice(SDRDevice):
     @property
     def capabilities(self) -> Capabilities:
         return Capabilities(
-            frequency_tuning=True,
+            frequency=True,
             sample_rate=True,
-            gain_control=True,
-            bandwidth_control=True,
+            gain=True,
+            bandwidth=True,
             bias_tee=True,
             transmit=False,
         )
@@ -77,19 +88,25 @@ class HackRFDevice(SDRDevice):
         pass
 
     def set_frequency(self, frequency: int) -> None:
-        pass
+        self._freq = frequency
+
+    def get_frequency(self) -> int:
+        return self._freq
 
     def set_sample_rate(self, sample_rate: int) -> None:
-        pass
+        self._rate = sample_rate
+
+    def get_sample_rate(self) -> int:
+        return self._rate
 
     def set_gain(self, gain: float) -> None:
-        pass
+        self._gain = gain
 
-    def start_stream(self) -> IQStream:
+    def get_gain(self) -> float:
+        return self._gain
+
+    def stream(self, config: "StreamConfig | None" = None) -> IQStream:
         return HackRFStream(self._sdr)
-
-    def stop_stream(self) -> None:
-        pass
 
 
 class HackRFBackend(SDRBackend):

@@ -39,9 +39,9 @@ def test_replay_backend(tmp_path: Path):
     dev = backend.open(devices[0])
 
     assert dev.info.product.startswith("Replay")
-    assert not dev.capabilities.frequency_tuning
+    assert not dev.capabilities.frequency
 
-    stream = dev.start_stream()
+    stream = dev.stream()
 
     # Read block
     block = next(stream)
@@ -49,5 +49,5 @@ def test_replay_backend(tmp_path: Path):
     assert block.center_frequency == 100_000
 
     # Cleanup
-    stream.stop()
+    stream.close()
     dev.close()

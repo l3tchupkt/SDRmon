@@ -12,13 +12,23 @@ class IQStream(ABC):
     """Abstract interface for consuming IQ blocks."""
 
     @abstractmethod
+    def start(self) -> None:
+        """Start the stream. Must be idempotent."""
+        ...
+
+    @abstractmethod
     def read(self) -> IQBlock:
         """Read the next block of IQ samples. Blocks if empty."""
         ...
 
     @abstractmethod
     def stop(self) -> None:
-        """Stop the stream."""
+        """Stop the stream. Must be idempotent."""
+        ...
+
+    @abstractmethod
+    def close(self) -> None:
+        """Close the stream and release resources. Must be idempotent."""
         ...
 
     def __iter__(self) -> Iterator[IQBlock]:

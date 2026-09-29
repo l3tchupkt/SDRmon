@@ -51,40 +51,34 @@ def run(args: argparse.Namespace) -> None:
         console.print("[red]Invalid frequency or sample rate format.[/red]")
         return
 
-    dev.set_frequency(freq)
-    dev.set_sample_rate(rate)
+    from sdrmon.core.settings import StreamConfig
+    from sdrmon.capture.recorder import IQRecorder
 
+    config = StreamConfig(
+        frequency=freq,
+        sample_rate=rate,
+    )
+
+    console.print(f"Starting capture to {args.output} for {args.duration} seconds...")
+
+    stream = dev.stream(config)
+
+    start_t = time.time()
+    
     out_path = Path(args.output)
     meta_path = out_path.with_suffix(".json")
 
-    meta = CaptureMetadata(
-        device=dev_info.product or "Unknown",
-        frequency=freq,
-        sample_rate=rate,
-        gain=None,  # Todo get actual gain
-        format="complex64",
-        started_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        duration=args.duration,
-    )
+    with stream:
+        with IQRecorder(out_path, device_info=dev_info) as recorder:
+            try:
+                for block in stream:
+                    recorder.write(block)
+                    if time.time() - start_t > args.duration:
+                        break
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Capture interrupted.[/yellow]")
 
-    console.print(f"Starting capture to {out_path} for {args.duration} seconds...")
-
-    stream = dev.start_stream()
-
-    start_t = time.time()
-
-    with open(out_path, "wb") as f:
-        try:
-            for block in stream:
-                f.write(block.samples.tobytes())
-                if time.time() - start_t > args.duration:
-                    break
-        except KeyboardInterrupt:
-            console.print("\n[yellow]Capture interrupted.[/yellow]")
-            meta.duration = time.time() - start_t
-
-    dev.stop_stream()
     dev.close()
 
-    meta.save(meta_path)
     console.print(f"[green]Capture saved to {out_path} and {meta_path}[/green]")
+

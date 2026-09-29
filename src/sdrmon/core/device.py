@@ -5,11 +5,15 @@ Device abstraction for SDRmon.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from typing import TYPE_CHECKING
 from sdrmon.core.capabilities import Capabilities
 from sdrmon.core.stream import IQStream
 
+if TYPE_CHECKING:
+    from sdrmon.core.settings import StreamConfig
 
-@dataclass
+
+@dataclass(frozen=True)
 class DeviceInfo:
     """Information about a discovered or connected SDR device."""
 
@@ -53,8 +57,18 @@ class SDRDevice(ABC):
         ...
 
     @abstractmethod
+    def get_frequency(self) -> int:
+        """Get the current center frequency in Hz."""
+        ...
+
+    @abstractmethod
     def set_sample_rate(self, sample_rate: int) -> None:
         """Set the sample rate in Hz."""
+        ...
+
+    @abstractmethod
+    def get_sample_rate(self) -> int:
+        """Get the current sample rate in Hz."""
         ...
 
     @abstractmethod
@@ -63,11 +77,11 @@ class SDRDevice(ABC):
         ...
 
     @abstractmethod
-    def start_stream(self) -> IQStream:
-        """Start streaming IQ samples."""
+    def get_gain(self) -> float:
+        """Get the current gain in dB."""
         ...
 
     @abstractmethod
-    def stop_stream(self) -> None:
-        """Stop streaming IQ samples."""
+    def stream(self, config: "StreamConfig | None" = None) -> IQStream:
+        """Start streaming IQ samples."""
         ...

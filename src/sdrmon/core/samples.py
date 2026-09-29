@@ -8,7 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-@dataclass
+@dataclass(frozen=True)
 class IQBlock:
     """A block of IQ samples with metadata."""
 

@@ -10,29 +10,33 @@ from sdrmon.backends.base import SDRBackend
 class BackendRegistry:
     """Registry of available SDR backends."""
 
-    _backends: Dict[str, SDRBackend] = {}
+    def __init__(self) -> None:
+        self._backends: Dict[str, SDRBackend] = {}
 
-    @classmethod
-    def register(cls, backend_instance: SDRBackend) -> None:
+    def register(self, backend_instance: SDRBackend) -> None:
         """Register a backend instance."""
-        cls._backends[backend_instance.name] = backend_instance
+        if backend_instance.name in self._backends:
+            raise ValueError(f"Backend '{backend_instance.name}' already registered.")
+        self._backends[backend_instance.name] = backend_instance
 
-    @classmethod
-    def get_backend(cls, name: str) -> SDRBackend:
+    def unregister(self, name: str) -> None:
+        """Unregister a backend by name."""
+        if name in self._backends:
+            del self._backends[name]
+
+    def get_backend(self, name: str) -> SDRBackend:
         """Get a backend by name."""
-        if name not in cls._backends:
+        if name not in self._backends:
             raise ValueError(f"Backend '{name}' not found.")
-        return cls._backends[name]
+        return self._backends[name]
 
-    @classmethod
-    def all_backends(cls) -> List[SDRBackend]:
+    def all_backends(self) -> List[SDRBackend]:
         """Get all registered backends."""
-        return list(cls._backends.values())
+        return list(self._backends.values())
 
-    @classmethod
-    def clear(cls) -> None:
+    def clear(self) -> None:
         """Clear the registry (useful for testing)."""
-        cls._backends.clear()
+        self._backends.clear()
 
 
 backend_registry = BackendRegistry()

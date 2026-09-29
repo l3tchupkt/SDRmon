@@ -11,6 +11,7 @@ from sdrmon.backends.base import SDRBackend
 from sdrmon.core.capabilities import Capabilities
 from sdrmon.core.device import DeviceInfo, SDRDevice
 from sdrmon.core.samples import IQBlock
+from sdrmon.core.settings import StreamConfig
 from sdrmon.core.stream import IQStream
 
 
@@ -58,10 +59,17 @@ class SyntheticStream(IQStream):
     def stop(self) -> None:
         self._running = False
 
+    def start(self) -> None:
+        self._running = True
+
+    def close(self) -> None:
+        self.stop()
+
     def __next__(self) -> IQBlock:
         return self.read()
 
     def __enter__(self) -> "SyntheticStream":
+        self.start()
         return self
 
     def __exit__(
@@ -70,7 +78,7 @@ class SyntheticStream(IQStream):
         exc_val: BaseException | None,
         exc_tb: object | None,
     ) -> None:
-        self.stop()
+        self.close()
 
 
 class FakeSDRDevice(SDRDevice):
@@ -91,10 +99,10 @@ class FakeSDRDevice(SDRDevice):
     @property
     def capabilities(self) -> Capabilities:
         return Capabilities(
-            frequency_tuning=True,
+            frequency=True,
             sample_rate=True,
-            gain_control=True,
-            bandwidth_control=False,
+            gain=True,
+            bandwidth=False,
         )
 
     def open(self) -> None:
@@ -102,28 +110,37 @@ class FakeSDRDevice(SDRDevice):
 
     def close(self) -> None:
         if self._stream:
-            self._stream.stop()
+            self._stream.close()
         self._is_open = False
 
     def set_frequency(self, frequency: int) -> None:
         self._freq = frequency
 
+    def get_frequency(self) -> int:
+        return self._freq
+
     def set_sample_rate(self, sample_rate: int) -> None:
         self._rate = sample_rate
+
+    def get_sample_rate(self) -> int:
+        return self._rate
 
     def set_gain(self, gain: float) -> None:
         self._gain = gain
 
-    def start_stream(self) -> IQStream:
+    def get_gain(self) -> float:
+        return self._gain
+
+    def stream(self, config: "StreamConfig | None" = None) -> IQStream:
         if not self._is_open:
             raise RuntimeError("Device is not open")
+        if config:
+            self.set_frequency(config.frequency)
+            self.set_sample_rate(config.sample_rate)
+            if config.gain is not None:
+                self.set_gain(config.gain)
         self._stream = SyntheticStream(self._rate, self._freq)
         return self._stream
-
-    def stop_stream(self) -> None:
-        if self._stream:
-            self._stream.stop()
-            self._stream = None
 
 
 class FakeSDRBackend(SDRBackend):

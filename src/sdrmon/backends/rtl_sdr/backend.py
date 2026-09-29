@@ -11,6 +11,7 @@ from sdrmon.backends.base import SDRBackend
 from sdrmon.core.capabilities import Capabilities
 from sdrmon.core.device import DeviceInfo, SDRDevice
 from sdrmon.core.samples import IQBlock
+from sdrmon.core.settings import StreamConfig
 from sdrmon.core.stream import IQStream
 
 try:
@@ -50,8 +51,14 @@ class RtlSdrStream(IQStream):
         self._seq += 1
         return block
 
+    def start(self) -> None:
+        self._running = True
+
     def stop(self) -> None:
         self._running = False
+
+    def close(self) -> None:
+        self.stop()
 
     def __iter__(self):
         self._running = True
@@ -61,7 +68,7 @@ class RtlSdrStream(IQStream):
         return self.read()
 
     def __enter__(self) -> "RtlSdrStream":
-        self._running = True
+        self.start()
         return self
 
     def __exit__(
@@ -70,7 +77,7 @@ class RtlSdrStream(IQStream):
         exc_val: BaseException | None,
         exc_tb: object | None,
     ) -> None:
-        self.stop()
+        self.close()
 
 
 class RtlSdrDevice(SDRDevice):
@@ -80,6 +87,9 @@ class RtlSdrDevice(SDRDevice):
         self._info = info
         self._sdr: Any = None
         self._stream: Optional[RtlSdrStream] = None
+        self._freq: int = 0
+        self._rate: int = 0
+        self._gain: float = 0.0
 
     @property
     def info(self) -> DeviceInfo:
@@ -88,10 +98,10 @@ class RtlSdrDevice(SDRDevice):
     @property
     def capabilities(self) -> Capabilities:
         return Capabilities(
-            frequency_tuning=True,
+            frequency=True,
             sample_rate=True,
-            gain_control=True,
-            bandwidth_control=False,
+            gain=True,
+            bandwidth=False,
         )
 
     def open(self) -> None:
@@ -107,7 +117,7 @@ class RtlSdrDevice(SDRDevice):
 
     def close(self) -> None:
         if self._stream:
-            self._stream.stop()
+            self._stream.close()
         if self._sdr:
             self._sdr.close()
             self._sdr = None
@@ -115,25 +125,37 @@ class RtlSdrDevice(SDRDevice):
     def set_frequency(self, frequency: int) -> None:
         if self._sdr:
             self._sdr.center_freq = frequency
+        self._freq = frequency
+
+    def get_frequency(self) -> int:
+        return self._freq
 
     def set_sample_rate(self, sample_rate: int) -> None:
         if self._sdr:
             self._sdr.sample_rate = sample_rate
+        self._rate = sample_rate
+
+    def get_sample_rate(self) -> int:
+        return self._rate
 
     def set_gain(self, gain: float) -> None:
         if self._sdr:
             self._sdr.gain = gain
+        self._gain = gain
 
-    def start_stream(self) -> IQStream:
+    def get_gain(self) -> float:
+        return self._gain
+
+    def stream(self, config: "StreamConfig | None" = None) -> IQStream:
         if not self._sdr:
             raise RuntimeError("Device is not open")
+        if config:
+            self.set_frequency(config.frequency)
+            self.set_sample_rate(config.sample_rate)
+            if config.gain is not None:
+                self.set_gain(config.gain)
         self._stream = RtlSdrStream(self._sdr)
         return self._stream
-
-    def stop_stream(self) -> None:
-        if self._stream:
-            self._stream.stop()
-            self._stream = None
 
 
 class RtlSdrBackend(SDRBackend):
