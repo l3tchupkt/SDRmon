@@ -14,16 +14,15 @@ license = { text = "MIT" }
 requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.24.0",
-    "textual>=0.50.0",
-    "rich>=13.0.0",
 ]
 
 [project.optional-dependencies]
 rtlsdr = ["pyrtlsdr>=0.3.0"]
 hackrf = ["libhackrf>=0.1"]
 pluto = ["pyadi-iio>=0.0.15"]
-all = ["pyrtlsdr>=0.3.0", "libhackrf>=0.1", "pyadi-iio>=0.0.15"]
-dev = ["pytest>=7.0", "ruff>=0.1", "pyright>=1.1"]
+tui = ["textual>=0.50.0", "rich>=13.0.0"]
+all = ["pyrtlsdr>=0.3.0", "libhackrf>=0.1", "pyadi-iio>=0.0.15", "textual>=0.50.0", "rich>=13.0.0"]
+dev = ["pytest>=7.0", "pytest-asyncio>=0.21.0", "ruff>=0.1", "pyright>=1.1"]
 
 [project.scripts]
 sdrmon = "sdrmon.cli.app:main"

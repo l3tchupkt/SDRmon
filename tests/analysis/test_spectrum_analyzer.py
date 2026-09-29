@@ -49,9 +49,11 @@ def test_spectrum_analyzer_tone_detection():
 
 def test_spectrum_analyzer_edge_cases():
     analyzer = SpectrumAnalyzer(fft_size=2048, window="hann")
-    import numpy as np
-    from sdrmon.core.samples import IQBlock
     import time
+
+    import numpy as np
+
+    from sdrmon.core.samples import IQBlock
 
     # Test empty samples
     block_empty = IQBlock(

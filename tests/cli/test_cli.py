@@ -3,8 +3,8 @@ CLI tests.
 """
 
 import argparse
+
 from sdrmon.cli.info import run as run_info
-from sdrmon.cli.capture import run as run_capture
 from sdrmon.cli.monitor import parse_freq
 
 

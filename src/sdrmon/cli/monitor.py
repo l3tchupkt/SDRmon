@@ -10,6 +10,7 @@ from sdrmon.devices.manager import SDRManager
 
 def setup_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--device", type=int, default=0, help="Device index")
+    parser.add_argument("--fake", action="store_true", help="Use FakeSDR backend")
     parser.add_argument("--frequency", type=str, help="Center frequency (e.g. 100M)")
     parser.add_argument("--sample-rate", type=str, help="Sample rate (e.g. 2.4M)")
 
@@ -36,23 +37,38 @@ def run(args: argparse.Namespace) -> None:
 
     console = Console()
 
-    devices = SDRManager.discover()
+    if args.fake:
+        from sdrmon.backends.generic.fake import FakeSDRDevice
 
-    if not devices:
-        console.print("[red]No SDR devices found.[/red]")
-        return
+        dev_info = DeviceInfo(
+            driver="fake",
+            product="FakeSDR",
+            vendor="Virtual",
+            serial="1",
+            bus=None,
+            usb_pid=None,
+            usb_vid=None,
+        )
+        dev = FakeSDRDevice(dev_info, seed=42)
+        dev.open()
+    else:
+        devices = SDRManager.discover()
+        if not devices:
+            console.print("[red]No SDR devices found.[/red]")
+            return
 
-    if args.device < 0 or args.device >= len(devices):
-        console.print(f"[red]Invalid device index {args.device}.[/red]")
-        return
+    if not args.fake:
+        if args.device < 0 or args.device >= len(devices):
+            console.print(f"[red]Invalid device index {args.device}.[/red]")
+            return
 
-    dev_info: DeviceInfo = devices[args.device]
+        dev_info: DeviceInfo = devices[args.device]
 
-    try:
-        dev = SDRManager.open(dev_info)
-    except Exception as e:
-        console.print(f"[red]Failed to open device: {e}[/red]")
-        return
+        try:
+            dev = SDRManager.open(dev_info)
+        except Exception as e:
+            console.print(f"[red]Failed to open device: {e}[/red]")
+            return
 
     freq = parse_freq(args.frequency)
     if freq:

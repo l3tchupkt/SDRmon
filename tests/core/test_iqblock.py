@@ -3,6 +3,7 @@ Tests for IQBlock.
 """
 
 import time
+
 import numpy as np
 
 from sdrmon.core.samples import IQBlock

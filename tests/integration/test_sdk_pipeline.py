@@ -4,8 +4,8 @@ Integration tests for SDK pipeline.
 
 from sdrmon import (
     SDRManager,
-    StreamConfig,
     SpectrumAnalyzer,
+    StreamConfig,
 )
 
 

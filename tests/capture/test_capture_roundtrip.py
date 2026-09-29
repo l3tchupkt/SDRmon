@@ -3,6 +3,7 @@ Tests for Capture and Replay round trip.
 """
 
 from pathlib import Path
+
 import numpy as np
 
 from sdrmon.backends.generic.fake import FakeSDRDevice

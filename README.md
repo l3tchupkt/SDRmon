@@ -20,7 +20,15 @@ pip install sdrmon
 ## Quick Start
 
 ```bash
-sdrmon
+sdrmon monitor
+```
+
+## Terminal UI
+
+SDRmon provides a professional Spectrum Analyzer right in your terminal. You can test it without hardware using the built-in FakeSDR:
+
+```bash
+sdrmon monitor --fake
 ```
 
 ## Platform Support

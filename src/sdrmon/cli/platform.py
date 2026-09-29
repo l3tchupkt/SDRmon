@@ -12,6 +12,7 @@ def setup_parser(parser: argparse.ArgumentParser) -> None:
 def run(args: argparse.Namespace) -> None:
     from rich.console import Console
     from rich.panel import Panel
+
     from sdrmon.platform import get_environment_info
 
     console = Console()
