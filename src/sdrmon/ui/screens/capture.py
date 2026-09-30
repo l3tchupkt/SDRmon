@@ -1,78 +1,38 @@
 """
-Capture screen and dialogs.
+Capture modal dialogs.
 """
 
-from typing import Optional
+from typing import Any
 
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.message import Message
-from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label
 
-
-class CaptureErrorMsg(Message):
-    """Fired when an error occurs during capture."""
-
-    def __init__(self, error: Exception):
-        super().__init__()
-        self.error = error
+from sdrmon.ui.components import SDRmonModal
 
 
-class CaptureScreen(ModalScreen[Optional[dict]]):
+class CaptureScreen(SDRmonModal):
     """A modal dialog to configure capture."""
 
-    DEFAULT_CSS = """
-    CaptureScreen {
-        align: center middle;
-        background: $background 50%;
-    }
-    #capture-dialog {
-        width: 60;
-        height: auto;
-        padding: 1 2;
-        border: thick $primary;
-        background: $surface;
-    }
-    .input-row {
-        height: 3;
-        margin-bottom: 1;
-    }
-    .label {
-        width: 15;
-        padding-top: 1;
-    }
-    #buttons {
-        height: auto;
-        align: right middle;
-        margin-top: 1;
-    }
-    Button {
-        margin-left: 1;
-    }
-    """
-
-    def __init__(self, default_path: str = "capture.iq", *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, default_path: str = "capture.iq", **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self.default_path = default_path
 
     def compose(self) -> ComposeResult:
-        with Vertical(id="capture-dialog"):
-            yield Label("[bold]START CAPTURE[/bold]", classes="title")
+        with Vertical(classes="modal-dialog"):
+            yield Label("START CAPTURE", classes="modal-title")
 
-            with Horizontal(classes="input-row"):
-                yield Label("File:", classes="label")
-                yield Input(value=self.default_path, id="input-path")
+            yield Label("File path", classes="modal-hint")
+            yield Input(value=self.default_path, id="input-path")
 
-            with Horizontal(classes="input-row"):
-                yield Label("Duration (s):", classes="label")
-                yield Input(
-                    placeholder="Leave empty for manual stop", id="input-duration"
-                )
+            yield Label("Duration (seconds, optional)", classes="modal-hint")
+            yield Input(
+                placeholder="Leave empty for manual stop", id="input-duration"
+            )
 
-            with Horizontal(id="buttons"):
-                yield Button("Cancel", variant="default", id="btn-cancel")
-                yield Button("Start", variant="success", id="btn-start")
+            with Horizontal(classes="btn-row"):
+                yield Button("Cancel", id="btn-cancel", classes="btn-cancel")
+                yield Button("Start Capture", id="btn-start", classes="btn-primary")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-cancel":
@@ -94,3 +54,7 @@ class CaptureScreen(ModalScreen[Optional[dict]]):
                 return
 
             self.dismiss({"path": path, "duration": dur})
+
+    def on_key(self, event) -> None:  # type: ignore[override]
+        if event.key == "escape":
+            self.dismiss(None)

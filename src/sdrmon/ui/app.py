@@ -67,10 +67,14 @@ class SDRmonApp(App[Any]):
         self.push_screen(StartupScreen())
 
     def open_replay_browser(self) -> None:
-        """Open a file picker for replay, then navigate to monitor."""
-        from sdrmon.ui.screens.replay_browser import ReplayBrowserScreen
+        """Open a file picker modal for replay, then navigate to monitor."""
+        from sdrmon.ui.screens.replay_browser import ReplayModal
 
-        self.push_screen(ReplayBrowserScreen())
+        def on_result(device: SDRDevice | None) -> None:
+            if device:
+                self.switch_to_monitor(device)
+
+        self.push_screen(ReplayModal(), on_result)
 
 
 def start_tui(device: SDRDevice | None = None) -> None:

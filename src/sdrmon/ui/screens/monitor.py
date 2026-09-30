@@ -67,24 +67,40 @@ class MonitorScreen(Screen):
         background: #0a0e14;
         layout: vertical;
     }
-    #monitor-statusbar {
-        height: 1;
-        background: #131920;
-        padding: 0 1;
-        color: #b0bec5;
+    #monitor-main {
+        height: 1fr;
+        layout: vertical;
+    }
+    #vis-container {
+        height: 1fr;
+        layout: vertical;
     }
     #spectrum {
         height: 1fr;
-        border: solid #1e3a5c;
+        border-top: solid #1e3a5c;
         background: #060a10;
     }
     #waterfall {
         height: 1fr;
-        border: solid #1e3a5c;
+        border-top: solid #1e3a5c;
         background: #060a10;
     }
-    EventLog {
-        height: 4;
+    #info-container {
+        height: 5;
+        border-top: solid #1e88e5;
+        background: #131920;
+    }
+    #device-info {
+        width: 1fr;
+        padding: 0 1;
+        color: #b0bec5;
+    }
+    #info-container > EventLog {
+        width: 1fr;
+        height: 100%;
+        border: none;
+        border-left: solid #1a3a5c;
+        background: transparent;
     }
     """
 
@@ -123,10 +139,17 @@ class MonitorScreen(Screen):
         hdr = SDRmonHeader(id="monitor-header")
         hdr.mode = self._mode
         yield hdr
-        yield Static("", id="monitor-statusbar")
-        yield EventLog(id="event-log")
-        yield SpectrumWidget(id="spectrum")
-        yield WaterfallWidget(id="waterfall")
+
+        from textual.containers import Horizontal, Vertical
+        with Vertical(id="monitor-main"):
+            with Vertical(id="vis-container"):
+                yield SpectrumWidget(id="spectrum")
+                yield WaterfallWidget(id="waterfall")
+
+            with Horizontal(id="info-container"):
+                yield Static(id="device-info")
+                yield EventLog(id="event-log")
+
         ftr = SDRmonFooter(id="monitor-footer")
         ftr.shortcuts = LIVE_SHORTCUTS
         yield ftr
@@ -164,7 +187,7 @@ class MonitorScreen(Screen):
         elif isinstance(gain, str):
             hdr.gain = gain
 
-        self._update_statusbar()
+        self._update_device_info()
         log = self.query_one(EventLog)
         log.log(
             f"Opened {self.device.info.product} — {fmt_freq(freq)} @ {fmt_rate(rate)}",
@@ -176,20 +199,34 @@ class MonitorScreen(Screen):
 
         self._apply_view()
 
-    def _update_statusbar(self) -> None:
+    def _update_device_info(self, peak: float | None = None) -> None:
         if not self.controller:
             return
         cfg = self.controller.config
+        info = self.device.info
+
+        # Build dense info block
+        lines = []
+        lines.append("[bold #00b0ff]DEVICE[/bold #00b0ff]")
+
+        vendor_prod = f"{info.vendor} / {info.product}"
+        if info.serial:
+            vendor_prod += f" / {info.serial}"
+        lines.append(f"[bold]{vendor_prod}[/bold]")
+
         freq_s = fmt_freq(cfg.frequency)
-        rate_s = fmt_rate(cfg.sample_rate)
+        span_s = fmt_rate(cfg.sample_rate).replace("S/s", "Hz")
         zoom_s = f"Zoom {self._zoom:.1f}×"
-        view_s = _VIEW_LABELS.get(self._view_mode, "")
         fft_s = f"FFT {self.controller.fft_size}"
         win_s = self.controller.window.capitalize()
+        peak_s = f"Peak {peak:.1f} dBFS" if peak is not None else "Peak --"
+
+        lines.append(
+            f"Center {freq_s}   Span {span_s}   {fft_s}   {win_s}   {peak_s}   {zoom_s}"
+        )
+
         try:
-            self.query_one("#monitor-statusbar", Static).update(
-                f" {freq_s}  {rate_s}  {fft_s}  {win_s}  {zoom_s}  [{view_s}]"
-            )
+            self.query_one("#device-info", Static).update("\n".join(lines))
         except Exception:
             pass
 
@@ -238,11 +275,12 @@ class MonitorScreen(Screen):
                 wf.update_result(message.result)
         except Exception:
             pass
-        # Update header
+        # Update header and info
         try:
             hdr = self.query_one(SDRmonHeader)
             hdr.frequency = message.result.center_frequency
             hdr.sample_rate = message.result.sample_rate
+            self._update_device_info(peak=float(message.result.peak_power))
         except Exception:
             pass
 
@@ -280,20 +318,20 @@ class MonitorScreen(Screen):
         idx = modes.index(self._view_mode)
         self._view_mode = modes[(idx + 1) % len(modes)]
         self._apply_view()
-        self._update_statusbar()
+        self._update_device_info()
         self.query_one(EventLog).log(f"View: {_VIEW_LABELS[self._view_mode]}", "info")
 
     def action_zoom_in(self) -> None:
         self._zoom = min(8.0, self._zoom * 2.0)
         spec = self.query_one("#spectrum", SpectrumWidget)
         spec.zoom = self._zoom  # type: ignore[attr-defined]
-        self._update_statusbar()
+        self._update_device_info()
 
     def action_zoom_out(self) -> None:
         self._zoom = max(0.125, self._zoom / 2.0)
         spec = self.query_one("#spectrum", SpectrumWidget)
         spec.zoom = self._zoom  # type: ignore[attr-defined]
-        self._update_statusbar()
+        self._update_device_info()
 
     def action_window(self) -> None:
         if not self.controller:
@@ -307,7 +345,7 @@ class MonitorScreen(Screen):
         nxt = windows[(idx + 1) % len(windows)]
         self.controller.set_window(nxt)
         self.query_one(EventLog).log(f"Window → {nxt.capitalize()}", "info")
-        self._update_statusbar()
+        self._update_device_info()
 
     def action_freq(self) -> None:
         readonly = self.device.info.driver == "replay"
@@ -325,7 +363,7 @@ class MonitorScreen(Screen):
                 )
                 self.query_one(SDRmonHeader).frequency = hz
                 self.query_one(EventLog).log(f"Frequency → {fmt_freq(hz)}", "success")
-                self._update_statusbar()
+                self._update_device_info()
             except Exception as e:
                 self.query_one(EventLog).log(f"Freq error: {e}", "error")
 
@@ -376,7 +414,7 @@ class MonitorScreen(Screen):
                 self.query_one(EventLog).log(
                     f"Sample Rate → {fmt_rate(rate)}", "success"
                 )
-                self._update_statusbar()
+                self._update_device_info()
             except Exception as e:
                 self.query_one(EventLog).log(f"Rate error: {e}", "error")
 
@@ -389,10 +427,20 @@ class MonitorScreen(Screen):
         self.app.push_screen(HelpModal())
 
     def action_device_select(self) -> None:
-        """Return to device selection (cleanly stopping stream first)."""
-        if self.controller:
-            self.controller.stop()
-        self.app.switch_to_startup()  # type: ignore[attr-defined]
+        """Open device selection modal."""
+        from sdrmon.ui.screens.device_modal import DeviceModal
+
+        def on_result(result: SDRDevice | str | None) -> None:
+            if not result:
+                return
+            if result == "replay":
+                self.action_replay()
+            else:
+                if self.controller:
+                    self.controller.stop()
+                self.app.switch_to_monitor(result)  # type: ignore[attr-defined]
+
+        self.app.push_screen(DeviceModal(), on_result)
 
     def action_scan(self) -> None:
         if not self.controller:

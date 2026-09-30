@@ -1,5 +1,5 @@
 """
-Replay file browser screen.
+Replay file browser modal.
 """
 
 from __future__ import annotations
@@ -8,27 +8,30 @@ from pathlib import Path
 
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.screen import Screen
 from textual.widgets import Button, Input, Label, ListItem, ListView, Static
 
-from sdrmon.ui.components import AppMode, SDRmonFooter, SDRmonHeader
+from sdrmon.ui.components import SDRmonModal
 
 
-class ReplayBrowserScreen(Screen):
-    """Screen to browse and select a .iq file for replay."""
-
-    BINDINGS = [
-        ("escape", "go_back", "Back"),
-        ("q", "app.quit", "Quit"),
-        ("enter", "open_selected", "Open"),
-    ]
+class ReplayModal(SDRmonModal):
+    """Modal dialog to select a .iq file for replay."""
 
     DEFAULT_CSS = """
-    ReplayBrowserScreen {
-        background: #0a0e14;
+    ReplayModal {
+        align: center middle;
+        background: #0a0e14 70%;
     }
-    #replay-body {
-        margin: 1 4;
+    .modal-dialog {
+        width: 70;
+        height: auto;
+        border: solid #00b0ff;
+        background: #1a2332;
+        padding: 1 2;
+    }
+    .modal-title {
+        text-style: bold;
+        color: #00b0ff;
+        margin-bottom: 1;
     }
     #path-row {
         height: 3;
@@ -36,23 +39,34 @@ class ReplayBrowserScreen(Screen):
     }
     ListView {
         height: 1fr;
+        min-height: 5;
+        max-height: 15;
         border: solid #1e88e5;
         background: #131920;
         margin-bottom: 1;
     }
     ListItem {
-        height: 2;
+        height: 1;
         padding: 0 1;
     }
-    #replay-buttons {
-        height: 3;
-    }
-    Button {
-        margin-right: 1;
+    ListItem.--highlight {
+        background: #1a2332;
     }
     #replay-status {
         height: 1;
         color: #546e7a;
+        margin-bottom: 1;
+    }
+    .btn-row {
+        layout: horizontal;
+        height: 3;
+        align: right middle;
+    }
+    .spacer {
+        width: 1fr;
+    }
+    Button {
+        margin-left: 1;
     }
     """
 
@@ -62,13 +76,9 @@ class ReplayBrowserScreen(Screen):
         self._entries: list[Path] = []
 
     def compose(self) -> ComposeResult:
-        hdr = SDRmonHeader(id="replay-header")
-        hdr.mode = AppMode.REPLAY
-        yield hdr
-        with Vertical(id="replay-body"):
-            yield Label("[bold #00b0ff]SELECT REPLAY FILE[/bold #00b0ff]")
+        with Vertical(classes="modal-dialog"):
+            yield Label("OPEN CAPTURE", classes="modal-title")
             with Horizontal(id="path-row"):
-                yield Label("Path:", id="path-label")
                 yield Input(
                     value=str(self._current_dir),
                     id="path-input",
@@ -77,18 +87,12 @@ class ReplayBrowserScreen(Screen):
                 yield Button("Browse", id="btn-browse")
             yield ListView(id="file-list")
             yield Static("", id="replay-status")
-            with Horizontal(id="replay-buttons"):
-                yield Button("▶ Open", id="btn-open", variant="primary")
-                yield Button("↑ Parent", id="btn-parent")
-                yield Button("← Back", id="btn-back")
-        ftr = SDRmonFooter(id="replay-footer")
-        ftr.shortcuts = [
-            ("Enter", "Open"),
-            ("↑↓", "Select"),
-            ("Esc", "Back"),
-            ("q", "Quit"),
-        ]
-        yield ftr
+            with Horizontal(classes="btn-row"):
+                yield Label("Enter Open   Esc Cancel", classes="modal-hint")
+                yield Static("", classes="spacer", id="spacer-left")
+                yield Button("↑ Parent", id="btn-parent", classes="btn-cancel")
+                yield Button("Cancel", id="btn-back", classes="btn-cancel")
+                yield Button("Open", id="btn-open", classes="btn-primary")
 
     def on_mount(self) -> None:
         self._load_directory(self._current_dir)
@@ -113,6 +117,8 @@ class ReplayBrowserScreen(Screen):
             status.update(
                 f"{len([e for e in entries if not e.is_dir()])} .iq file(s) in directory"
             )
+            if lv.children:
+                lv.index = 0
         except PermissionError:
             self.notify("Permission denied.", severity="error")
 
@@ -122,7 +128,7 @@ class ReplayBrowserScreen(Screen):
         elif event.button.id == "btn-parent":
             self._load_directory(self._current_dir.parent)
         elif event.button.id == "btn-back":
-            self.action_go_back()
+            self.dismiss(None)
         elif event.button.id == "btn-browse":
             path_str = self.query_one("#path-input", Input).value
             new_path = Path(path_str)
@@ -169,21 +175,14 @@ class ReplayBrowserScreen(Screen):
             )
             dev = ReplayDevice(info, path, meta)
             dev.open()
+            self.dismiss(dev)
         except Exception as e:
             self.notify(f"Failed to open: {e}", severity="error")
             return
 
-        # Navigate to monitor
-        try:
-            self.app.switch_to_monitor(dev)  # type: ignore[attr-defined]
-        except Exception:
-            from sdrmon.ui.screens.monitor import MonitorScreen
-
-            self.app.pop_screen()
-            self.app.push_screen(MonitorScreen(dev))
-
-    def action_go_back(self) -> None:
-        self.app.pop_screen()
+    def on_key(self, event) -> None:  # type: ignore[override]
+        if event.key == "escape":
+            self.dismiss(None)
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         self.action_open_selected()

@@ -8,10 +8,9 @@ import threading
 from typing import Any, Optional
 
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical
 from textual.message import Message
 from textual.screen import Screen
-from textual.widgets import Button, Label
+from textual.widgets import Button
 
 from sdrmon.core.device import SDRDevice
 from sdrmon.scanner import ScanConfig, Scanner, ScanResult
@@ -56,38 +55,15 @@ class ScannerScreen(Screen):
     DEFAULT_CSS = """
     ScannerScreen {
         background: #0a0e14;
-    }
-    #scanner-config {
-        height: 6;
-        border: solid #1e88e5;
-        background: #131920;
-        padding: 1 2;
-    }
-    .cfg-row {
-        height: 2;
-        layout: horizontal;
-    }
-    .cfg-label {
-        width: 14;
-        color: #546e7a;
-    }
-    .cfg-value {
-        width: 1fr;
-        color: #eceff1;
+        layout: vertical;
     }
     #scanner-widget {
         height: 1fr;
     }
-    #scanner-progress {
-        height: 1;
-        margin: 0 2;
-    }
-    #scan-buttons {
-        height: 3;
-        padding: 0 2;
-    }
-    Button {
-        margin-right: 1;
+    #scanner-log {
+        height: 5;
+        border-top: solid #1e88e5;
+        background: #131920;
     }
     """
 
@@ -107,39 +83,8 @@ class ScannerScreen(Screen):
         hdr.device_name = self.device.info.product
         yield hdr
 
-        with Vertical(id="scanner-config"):
-            with Horizontal(classes="cfg-row"):
-                yield Label("Start:", classes="cfg-label")
-                yield Label(
-                    fmt_freq(self.config.start_frequency),
-                    classes="cfg-value",
-                    id="cfg-start",
-                )
-                yield Label("Stop:", classes="cfg-label")
-                yield Label(
-                    fmt_freq(self.config.stop_frequency),
-                    classes="cfg-value",
-                    id="cfg-stop",
-                )
-            with Horizontal(classes="cfg-row"):
-                yield Label("Step:", classes="cfg-label")
-                yield Label(
-                    fmt_freq(self.config.step), classes="cfg-value", id="cfg-step"
-                )
-                yield Label("Dwell:", classes="cfg-label")
-                yield Label(
-                    f"{self.config.dwell_time * 1000:.0f} ms", classes="cfg-value"
-                )
-                yield Label("Threshold:", classes="cfg-label")
-                yield Label(f"{self.config.threshold:.0f} dB", classes="cfg-value")
-
         yield ScannerWidget(id="scanner-widget")
         yield EventLog(id="scanner-log")
-
-        with Horizontal(id="scan-buttons"):
-            yield Button("▶ Start", id="btn-scan-start", variant="primary")
-            yield Button("■ Cancel", id="btn-scan-cancel")
-            yield Button("← Back", id="btn-scan-back")
 
         ftr = SDRmonFooter(id="scanner-footer")
         ftr.shortcuts = SCANNER_SHORTCUTS
