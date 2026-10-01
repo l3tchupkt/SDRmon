@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["scikit-build-core>=0.5", "pybind11"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "sdrmon"
@@ -27,8 +27,9 @@ dev = ["pytest>=7.0", "pytest-asyncio>=0.21.0", "ruff>=0.1", "pyright>=1.1"]
 [project.scripts]
 sdrmon = "sdrmon.cli.app:main"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/sdrmon"]
+[tool.scikit-build]
+cmake.source-dir = "native"
+wheel.packages = ["src/sdrmon"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"

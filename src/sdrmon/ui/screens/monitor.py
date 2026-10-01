@@ -310,6 +310,14 @@ class MonitorScreen(Screen):
         log = self.query_one(EventLog)
         log.log(f"Hardware disconnect / stream error: {message.error}", "error")
         self.app.notify(f"SDR Error: {message.error}", severity="error", timeout=10.0)
+
+        if self.controller:
+            self.controller.stop()
+        try:
+            self.device.close()
+        except Exception as e:
+            log.log(f"Error closing device: {e}", "warning")
+
         try:
             hdr = self.query_one(SDRmonHeader)
             hdr.is_paused = True

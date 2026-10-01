@@ -16,7 +16,6 @@ from sdrmon.ui.components import DEVICE_SHORTCUTS, AppMode, SDRmonFooter, SDRmon
 
 LOGO_ART = """\
 [#00b0ff]
-
 ╔═══════╗ ╔═══════╗ ╔═══════╗
 ║ ╔═════╝ ║ ╔═══╗ ║ ║ ╔═══╗ ║ ╔═════════╗ ╔═══════╗ ╔═══════╗
 ║ ╚═════╗ ║ ║   ║ ║ ║ ╚═══╝ ║ ║ ╔═╗ ╔═╗ ║ ║ ╔═══╗ ║ ║ ╔═══╗ ║

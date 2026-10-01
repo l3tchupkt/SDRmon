@@ -23,7 +23,7 @@ def test_rtlsdr_hardware_stream():
         # Conservative settings
         config = StreamConfig(
             frequency=100_000_000,
-            sample_rate=1_000_000,
+            sample_rate=2_048_000,
             gain=None,
         )
 
@@ -34,7 +34,7 @@ def test_rtlsdr_hardware_stream():
         stream.stop()
 
         assert block is not None
-        assert block.sample_rate == 1_000_000
+        assert block.sample_rate == 2_048_000
         assert block.center_frequency == 100_000_000
         assert len(block.samples) > 0
     finally:
