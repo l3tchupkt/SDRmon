@@ -192,7 +192,7 @@ class MonitorScreen(Screen):
             gain=gain if isinstance(gain, float) else None,
         )
 
-        self.controller = UIController(self.device, self.app, config)
+        self.controller = UIController(self.device, self, config)
         self.controller.start()
 
         # Header

@@ -100,5 +100,6 @@ class NativeSDRDevice(SDRDevice):
         if config is not None:
             self.configure(config)
         if self._stream is None:
+            self._native.start() # Ensure native device is started so it creates the stream
             self._stream = NativeIQStream(self._native.stream())
         return self._stream
