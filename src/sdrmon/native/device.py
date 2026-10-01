@@ -45,7 +45,7 @@ class NativeSDRDevice(SDRDevice):
         )
 
     def open(self) -> None:
-        pass # The manager already opened it and returned this device
+        pass  # The manager already opened it and returned this device
 
     def configure(self, config: StreamConfig) -> None:
         native_config = sdrmon_native.StreamConfig()
@@ -100,6 +100,6 @@ class NativeSDRDevice(SDRDevice):
         if config is not None:
             self.configure(config)
         if self._stream is None:
-            self._native.start() # Ensure native device is started so it creates the stream
+            self._native.start()  # Ensure native device is started so it creates the stream
             self._stream = NativeIQStream(self._native.stream())
         return self._stream

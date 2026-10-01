@@ -18,6 +18,7 @@ def test_native_manager_discovery():
             assert dev.driver == "FakeSDR"
     assert fake_found
 
+
 def test_native_fake_stream():
     manager = NativeSDRManager()
     dev = manager.open("fake:0")
@@ -38,6 +39,7 @@ def test_native_fake_stream():
 
     dev.stop()
     assert not stream.running()
+
 
 def test_native_gil_release():
     manager = NativeSDRManager()

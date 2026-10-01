@@ -22,6 +22,7 @@ from sdrmon.core.device import DeviceInfo
 # Helpers                                                                      #
 # --------------------------------------------------------------------------- #
 
+
 def _fake_device_info() -> DeviceInfo:
     return DeviceInfo(
         driver="rtl_sdr",
@@ -53,6 +54,7 @@ def _fake_native_device_info():
 # --------------------------------------------------------------------------- #
 # Layer 1 — Backend registration / no-hardware                                #
 # --------------------------------------------------------------------------- #
+
 
 class TestRtlSdrBackendRegistration:
     def test_name(self):
@@ -128,6 +130,7 @@ class TestRtlSdrBackendRegistration:
 # Layer 2 — Native manager mock (no hardware)                                 #
 # --------------------------------------------------------------------------- #
 
+
 class TestNativeManagerIntegration:
     """Tests that exercise the full Python adapter chain but with a mocked C++
     manager."""
@@ -170,6 +173,7 @@ class TestNativeManagerIntegration:
 # IQ conversion correctness — documented contract                             #
 # --------------------------------------------------------------------------- #
 
+
 class TestIQConversionContract:
     """
     RTL-SDR produces uint8 interleaved IQ, centered at 127.5, range 0-255.
@@ -180,14 +184,17 @@ class TestIQConversionContract:
     (C++ or Python).
     """
 
-    @pytest.mark.parametrize("raw, expected", [
-        (0, -1.0),          # minimum
-        (127, (127 - 127.5) / 127.5),   # just below center
-        (128, (128 - 127.5) / 127.5),   # just above center
-        (255, 1.0),         # maximum
-        (64, (64 - 127.5) / 127.5),     # quarter scale
-        (192, (192 - 127.5) / 127.5),   # three-quarter scale
-    ])
+    @pytest.mark.parametrize(
+        "raw, expected",
+        [
+            (0, -1.0),  # minimum
+            (127, (127 - 127.5) / 127.5),  # just below center
+            (128, (128 - 127.5) / 127.5),  # just above center
+            (255, 1.0),  # maximum
+            (64, (64 - 127.5) / 127.5),  # quarter scale
+            (192, (192 - 127.5) / 127.5),  # three-quarter scale
+        ],
+    )
     def test_conversion_values(self, raw, expected):
         result = (raw - 127.5) / 127.5
         assert abs(result - expected) < 1e-4, (
@@ -235,6 +242,7 @@ class TestIQConversionContract:
 # Layer 3 — Physical hardware (requires device connected)                     #
 # --------------------------------------------------------------------------- #
 
+
 @pytest.mark.hardware
 class TestRtlSdrHardware:
     """
@@ -244,6 +252,7 @@ class TestRtlSdrHardware:
 
     def test_hardware_discover(self):
         from sdrmon.native.manager import NativeSDRManager
+
         mgr = NativeSDRManager()
         devices = mgr.discover()
         rtl_devices = [d for d in devices if d.driver == "rtl_sdr"]
@@ -287,7 +296,7 @@ class TestRtlSdrHardware:
         # Verify actual data
         for block in blocks:
             assert len(block.samples) > 0
-            rms = float((block.samples.real**2 + block.samples.imag**2).mean()**0.5)
+            rms = float((block.samples.real**2 + block.samples.imag**2).mean() ** 0.5)
             assert rms > 0.0, "All-zero IQ — device is not streaming real data"
 
         # Verify sequence numbers are monotonically increasing

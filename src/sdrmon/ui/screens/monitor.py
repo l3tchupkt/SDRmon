@@ -27,7 +27,12 @@ from sdrmon.ui.components import (
     fmt_rate,
 )
 from sdrmon.ui.controller import UIController
-from sdrmon.ui.widgets.spectrum import SpectrumUpdated, SpectrumWidget
+from sdrmon.ui.widgets.spectrum import (
+    SpectrumClick,
+    SpectrumUpdated,
+    SpectrumWidget,
+    SpectrumZoom,
+)
 from sdrmon.ui.widgets.waterfall import WaterfallWidget
 
 # ── View mode cycling ─────────────────────────────────────────────────────────
@@ -140,7 +145,9 @@ class MonitorScreen(Screen):
         self.controller: UIController | None = None
         self._view_mode = ViewMode.BOTH
         self._zoom = 1.0
-        self._mode = AppMode.LIVE if device.info.driver != "replay" else AppMode.REPLAY
+        self._mode = (
+            AppMode.STARTING if device.info.driver != "replay" else AppMode.REPLAY
+        )
 
         # Capture state
         self._capture_timer = None
@@ -298,13 +305,41 @@ class MonitorScreen(Screen):
             pass
         # Update header and info
         try:
+            # Transition to LIVE state once actual data is received
             hdr = self.query_one(SDRmonHeader)
+            if self._mode == AppMode.STARTING:
+                self._mode = AppMode.LIVE
+                hdr.mode = AppMode.LIVE
+
             hdr.frequency = message.result.center_frequency
             hdr.sample_rate = message.result.sample_rate
             peak = message.result.peak_power
             self._update_device_info(peak=float(peak) if peak is not None else None)
         except Exception:
             pass
+
+    def on_spectrum_zoom(self, message: SpectrumZoom) -> None:
+        if message.direction == "in":
+            self.action_zoom_in()
+        else:
+            self.action_zoom_out()
+
+    def on_spectrum_click(self, message: SpectrumClick) -> None:
+        if not self.controller or self.device.info.driver == "replay":
+            return
+        try:
+            hz = message.freq_hz
+            self.device.set_frequency(hz)
+            self.controller.config = StreamConfig(
+                frequency=hz,
+                sample_rate=self.controller.config.sample_rate,
+                gain=self.controller.config.gain,
+            )
+            self.query_one(SDRmonHeader).frequency = hz
+            self.query_one(EventLog).log(f"Tuned → {fmt_freq(hz)}", "success")
+            self._update_device_info()
+        except Exception as e:
+            self.query_one(EventLog).log(f"Tune error: {e}", "error")
 
     def on_stream_error_msg(self, message: Any) -> None:
         log = self.query_one(EventLog)
@@ -321,12 +356,18 @@ class MonitorScreen(Screen):
         try:
             hdr = self.query_one(SDRmonHeader)
             hdr.is_paused = True
+            hdr.mode = AppMode.ERROR
+            self._mode = AppMode.ERROR
         except Exception:
             pass
 
     def on_unmount(self) -> None:
         if self.controller:
             self.controller.stop()
+        try:
+            self.device.close()
+        except Exception:
+            pass
         if self._capture_timer:
             self._capture_timer.stop()
 

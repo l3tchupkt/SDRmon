@@ -21,6 +21,18 @@ class SpectrumUpdated(Message):
         self.result = result
 
 
+class SpectrumClick(Message):
+    def __init__(self, freq_hz: int) -> None:
+        super().__init__()
+        self.freq_hz = freq_hz
+
+
+class SpectrumZoom(Message):
+    def __init__(self, direction: str) -> None:
+        super().__init__()
+        self.direction = direction
+
+
 class SpectrumWidget(Widget):
     """A terminal spectrum analyzer widget."""
 
@@ -79,8 +91,9 @@ class SpectrumWidget(Widget):
         width = self.size.width
         height = self.size.height
 
+        bg_style = Style(bgcolor="#060a10")
         if height <= 2 or width <= 2 or self.result is None:
-            return Strip([Segment(" " * width)])
+            return Strip([Segment(" " * width, bg_style)])
 
         # Determine y axis bounds for drawing
         # The top line (y=0) corresponds to max_power
@@ -102,7 +115,7 @@ class SpectrumWidget(Widget):
             power = power[start : start + keep]
         n_bins = len(power)
         if n_bins == 0:
-            return Strip([Segment(" " * width)])
+            return Strip([Segment(" " * width, bg_style)])
 
         # Aggregate bins (max-preserving)
         from sdrmon.ui.rendering import aggregate_spectrum
@@ -111,17 +124,17 @@ class SpectrumWidget(Widget):
 
         # Draw the line
         segments = []
-        style = self.rich_style
+        style = self.rich_style + bg_style
 
         # Calculate power thresholds for this line
         if y == height - 1:
             # Render frequency labels
             if self.result is None:
-                return Strip([Segment(" " * width)])
+                return Strip([Segment(" " * width, bg_style)])
 
             freqs = self.result.frequencies
             if len(freqs) == 0:
-                return Strip([Segment(" " * width)])
+                return Strip([Segment(" " * width, bg_style)])
 
             if self.zoom > 1.0:
                 n = len(freqs)
@@ -159,7 +172,9 @@ class SpectrumWidget(Widget):
                 line = line[:max_pos] + s_max
 
             # If there's a peak, also show it on the top line? Let's just return the strip
-            return Strip([Segment(" " * 8 + line, Style(color="yellow"))])
+            return Strip(
+                [Segment(" " * 8 + line, Style(color="yellow", bgcolor="#060a10"))]
+            )
 
         # Draw the spectrum bars
         # Adjust height because we stole 1 line for labels
@@ -197,6 +212,36 @@ class SpectrumWidget(Widget):
             elif len(prefix) < 8:
                 prefix = prefix.rjust(8)
 
-        segments.insert(0, Segment(prefix, Style(color="cyan")))
+        segments.insert(0, Segment(prefix, Style(color="cyan", bgcolor="#060a10")))
 
         return Strip(segments)
+
+    def on_click(self, event) -> None:
+        """Handle mouse click to tune frequency."""
+        from textual.events import Click
+
+        if not isinstance(event, Click):
+            return
+        if self.result is None:
+            return
+        chart_width = max(1, self.size.width - 8)
+        x = event.x - 8
+        if 0 <= x < chart_width:
+            freqs = self.result.frequencies
+            if self.zoom > 1.0:
+                n = len(freqs)
+                keep = max(1, int(n / self.zoom))
+                start = (n - keep) // 2
+                freqs = freqs[start : start + keep]
+            idx = int((x / chart_width) * len(freqs))
+            idx = max(0, min(len(freqs) - 1, idx))
+            freq = freqs[idx]
+            self.post_message(SpectrumClick(int(freq)))
+
+    def on_mouse_scroll_up(self, event) -> None:
+        """Zoom in on scroll up."""
+        self.post_message(SpectrumZoom("in"))
+
+    def on_mouse_scroll_down(self, event) -> None:
+        """Zoom out on scroll down."""
+        self.post_message(SpectrumZoom("out"))

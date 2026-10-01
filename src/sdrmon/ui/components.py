@@ -26,6 +26,9 @@ class AppMode:
     CAPTURE = "capture"
     SETTINGS = "settings"
     HELP = "help"
+    STARTING = "starting"
+    ERROR = "error"
+    DISCONNECTED = "disconnected"
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -88,6 +91,10 @@ def status_pill(mode: str, is_paused: bool = False, is_recording: bool = False) 
         return "▶ REPLAY"
     if mode == AppMode.SCANNER:
         return "⟳ SCANNING"
+    if mode == AppMode.STARTING:
+        return "◌ STARTING"
+    if mode in (AppMode.ERROR, AppMode.DISCONNECTED):
+        return "⊗ ERROR"
     return "○ IDLE"
 
 
@@ -100,6 +107,10 @@ def status_pill_class(
         return "pill-paused"
     if mode in (AppMode.LIVE, AppMode.SCANNER):
         return "pill-running"
+    if mode == AppMode.STARTING:
+        return "pill-starting"
+    if mode in (AppMode.ERROR, AppMode.DISCONNECTED):
+        return "pill-error"
     if mode == AppMode.REPLAY:
         return "pill-replay"
     return "pill-idle"
@@ -173,6 +184,7 @@ class SDRmonHeader(Widget):
         color_map = {
             "pill-running": "#00e676",
             "pill-paused": "#ffea00",
+            "pill-starting": "#00b0ff",
             "pill-error": "#ff1744",
             "pill-recording": "#ff6d00",
             "pill-replay": "#00b0ff",

@@ -41,6 +41,7 @@ class WaterfallWidget(Widget):
         self._buffer: Optional[np.ndarray] = None
         self._head = 0  # Points to the oldest row (next to write)
         self._display_width = 0
+        self._last_result: Optional[SpectrumResult] = None
 
         # Color palette (0-255 mapping)
         # We will generate a palette of Rich Styles
@@ -92,6 +93,7 @@ class WaterfallWidget(Widget):
 
         self._resize_buffer(width)
 
+        self._last_result = result
         power = result.power
         if self.zoom > 1.0:
             n = len(power)
@@ -168,6 +170,40 @@ class WaterfallWidget(Widget):
 
         # Pad if terminal grew
         if len(segments) < width:
-            segments.append(Segment(" " * (width - len(segments))))
+            segments.append(
+                Segment(" " * (width - len(segments)), Style(bgcolor="#060a10"))
+            )
 
         return Strip(segments)
+
+    def on_click(self, event) -> None:
+        """Handle mouse click to tune frequency."""
+        from textual.events import Click
+        from .spectrum import SpectrumClick
+
+        if not isinstance(event, Click):
+            return
+        if self._last_result is None:
+            return
+        width = self.size.width
+        if 0 <= event.x < width:
+            freqs = self._last_result.frequencies
+            if self.zoom > 1.0:
+                n = len(freqs)
+                keep = max(1, int(n / self.zoom))
+                start = (n - keep) // 2
+                freqs = freqs[start : start + keep]
+            idx = int((event.x / width) * len(freqs))
+            idx = max(0, min(len(freqs) - 1, idx))
+            freq = freqs[idx]
+            self.post_message(SpectrumClick(int(freq)))
+
+    def on_mouse_scroll_up(self, event) -> None:
+        from .spectrum import SpectrumZoom
+
+        self.post_message(SpectrumZoom("in"))
+
+    def on_mouse_scroll_down(self, event) -> None:
+        from .spectrum import SpectrumZoom
+
+        self.post_message(SpectrumZoom("out"))

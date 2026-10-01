@@ -12,6 +12,16 @@ from sdrmon.core.device import SDRDevice
 from sdrmon.core.settings import StreamConfig
 from sdrmon.core.stream import IQStream
 
+from textual.message import Message
+
+
+class StreamErrorMsg(Message):
+    """Sent when an error occurs in the background stream worker."""
+
+    def __init__(self, err: Exception):
+        super().__init__()
+        self.error = err
+
 
 class UIController:
     """Manages the background thread for acquiring IQ and emitting UI events."""
@@ -137,15 +147,7 @@ class UIController:
                         last_update = now
 
         except Exception as e:
-            # Push error state to UI
-            from textual.message import Message
-
-            class StreamErrorMsg(Message):
-                def __init__(self, err: Exception):
-                    super().__init__()
-                    self.error = err
-
-            # Use call_from_thread since post_message might need thread-safety in some versions
+            # Use post_message to send error state to UI
             self.app.post_message(StreamErrorMsg(e))
         finally:
             self._running = False

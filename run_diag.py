@@ -26,15 +26,12 @@ def run_diagnostics():
         return
 
     print("\n[3] Configuration")
-    config = StreamConfig(
-        frequency=100_000_000,
-        sample_rate=2_048_000,
-        gain=20.0
-    )
+    config = StreamConfig(frequency=100_000_000, sample_rate=2_048_000, gain=20.0)
 
     try:
         # C++ wrapper expects config object
         import sdrmon_native
+
         nc = sdrmon_native.StreamConfig()
         nc.center_frequency = config.frequency
         nc.sample_rate = config.sample_rate
@@ -63,12 +60,16 @@ def run_diagnostics():
             n = len(block.samples)
             print(f"PASS: Received first IQ block! (Samples: {n})")
             samples = block.samples
-            print(f"  Sequence: {block.sequence_number}  Rate: {block.sample_rate/1e6:.3f} MS/s  CF: {block.center_frequency/1e6:.3f} MHz")
+            print(
+                f"  Sequence: {block.sequence_number}  Rate: {block.sample_rate / 1e6:.3f} MS/s  CF: {block.center_frequency / 1e6:.3f} MHz"
+            )
             print(f"  Max I: {samples.real.max():.3f}, Min I: {samples.real.min():.3f}")
             print(f"  Max Q: {samples.imag.max():.3f}, Min Q: {samples.imag.min():.3f}")
             # Check for non-zero (real hardware vs dead silence)
-            rms = float((samples.real**2 + samples.imag**2).mean()**0.5)
-            print(f"  RMS amplitude: {rms:.4f} (0.0 = DC / no signal, >0 = data received)")
+            rms = float((samples.real**2 + samples.imag**2).mean() ** 0.5)
+            print(
+                f"  RMS amplitude: {rms:.4f} (0.0 = DC / no signal, >0 = data received)"
+            )
         else:
             print("FAIL: next_block returned None")
     except Exception as e:
@@ -81,6 +82,7 @@ def run_diagnostics():
         print("PASS: Successfully stopped and closed.")
     except Exception as e:
         print(f"FAIL: Error stopping/closing - {e}")
+
 
 if __name__ == "__main__":
     run_diagnostics()
