@@ -233,14 +233,14 @@ class SDRmonFooter(Widget):
 
     DEFAULT_CSS = """
     SDRmonFooter {
-        height: 3;
+        height: auto;
         background: #0d47a1;
         padding: 0 1;
         layout: horizontal;
         align: left middle;
     }
     SDRmonFooter > Button {
-        height: 3;
+        height: 1;
         min-width: 10;
         margin: 0 1;
         background: #1565c0;

@@ -85,7 +85,13 @@ class SoundDeviceAudioOutput(AudioOutput):
             raise RuntimeError("sounddevice is required for SoundDeviceAudioOutput")
         self.stream = None
         self.sample_rate = 48000
+        
         self.underruns = 0
+        self.overruns = 0
+        self.generated_samples = 0
+        self.played_samples = 0
+        self.dropped_samples = 0
+        
         self.q = queue.Queue(maxsize=100)  # Buffer of audio chunks
         self.thread = None
         self._running = False
@@ -111,9 +117,11 @@ class SoundDeviceAudioOutput(AudioOutput):
                     # This naturally keeps the queue bounded and pushes back
                     try:
                         self.stream.write(samples)
+                        self.played_samples += len(samples)
                     except sd.PortAudioError as e:
                         if "underflow" in str(e).lower():
                             self.underruns += 1
+                        self.played_samples += len(samples) # Still advance
             except queue.Empty:
                 pass
             except Exception:
@@ -122,6 +130,11 @@ class SoundDeviceAudioOutput(AudioOutput):
     def start(self):
         self._running = True
         self.underruns = 0
+        self.overruns = 0
+        self.generated_samples = 0
+        self.played_samples = 0
+        self.dropped_samples = 0
+        
         if self.stream:
             self.stream.start()
 
@@ -132,13 +145,20 @@ class SoundDeviceAudioOutput(AudioOutput):
         if not self._running:
             return
 
+        self.generated_samples += len(samples)
         try:
             # If queue is full, we drop the oldest to avoid blocking DSP (and by extension IQ stream)
             if self.q.full():
-                self.q.get_nowait()
+                try:
+                    dropped = self.q.get_nowait()
+                    self.dropped_samples += len(dropped)
+                    self.overruns += 1
+                except queue.Empty:
+                    pass
             self.q.put_nowait(samples)
         except queue.Full:
-            pass
+            self.dropped_samples += len(samples)
+            self.overruns += 1
 
     def stop(self):
         self._running = False
@@ -154,4 +174,11 @@ class SoundDeviceAudioOutput(AudioOutput):
             self.stream = None
 
     def get_stats(self) -> dict[str, float]:
-        return {"underruns": self.underruns, "queue_size": self.q.qsize()}
+        return {
+            "underruns": self.underruns, 
+            "overruns": self.overruns,
+            "generated": self.generated_samples,
+            "played": self.played_samples,
+            "dropped": self.dropped_samples,
+            "queue_depth": self.q.qsize()
+        }

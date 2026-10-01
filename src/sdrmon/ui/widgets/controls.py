@@ -11,7 +11,7 @@ from sdrmon.ui.widgets.slider import Slider, SliderChanged
 class FrequencyControl(Widget):
     DEFAULT_CSS = """
     FrequencyControl {
-        height: 6;
+        height: auto;
         border: solid #1e3a5c;
         border-title-color: #00b0ff;
         padding: 0 1;
@@ -55,17 +55,33 @@ class FrequencyControl(Widget):
     """
 
     frequency = reactive(100_000_000)
+    min_freq = reactive(24_000_000)
+    max_freq = reactive(1766_000_000)
 
     def compose(self) -> ComposeResult:
         self.border_title = "FREQUENCY"
         with Horizontal(classes="freq-slider-row"):
-            yield Static("90.000 MHz", id="freq-label-min")
-            yield Slider(min_value=90.0, max_value=110.0, value=100.0, id="freq-slider")
-            yield Static("110.000 MHz", id="freq-label-max")
+            yield Static("24.000 MHz", id="freq-label-min")
+            yield Slider(min_value=24.0, max_value=1766.0, value=100.0, id="freq-slider")
+            yield Static("1766.000 MHz", id="freq-label-max")
         with Horizontal(classes="freq-row"):
             yield Button("−", id="freq-dec", classes="freq-btn")
             yield Input("100.000 MHz", id="freq-input")
             yield Button("+", id="freq-inc", classes="freq-btn")
+
+    def watch_min_freq(self, value: int) -> None:
+        try:
+            self.query_one("#freq-label-min", Static).update(f"{value / 1e6:.3f} MHz")
+            self.query_one("#freq-slider", Slider).min_value = value / 1e6
+        except Exception:
+            pass
+
+    def watch_max_freq(self, value: int) -> None:
+        try:
+            self.query_one("#freq-label-max", Static).update(f"{value / 1e6:.3f} MHz")
+            self.query_one("#freq-slider", Slider).max_value = value / 1e6
+        except Exception:
+            pass
 
     def watch_frequency(self, value: int) -> None:
         try:
@@ -100,7 +116,7 @@ class GainChanged(Message):
 class GainControl(Widget):
     DEFAULT_CSS = """
     GainControl {
-        height: 4;
+        height: auto;
         border: solid #1e3a5c;
         border-title-color: #00b0ff;
         padding: 0 1;
@@ -138,7 +154,7 @@ class RateChanged(Message):
 class RateControl(Widget):
     DEFAULT_CSS = """
     RateControl {
-        height: 4;
+        height: auto;
         border: solid #1e3a5c;
         border-title-color: #00b0ff;
         padding: 0 1;
@@ -153,14 +169,31 @@ class RateControl(Widget):
     }
     """
 
+    rate = reactive(2000000)
+    
+    def set_supported_rates(self, rates: list[int]) -> None:
+        opts = []
+        for r in rates:
+            opts.append((f"{r / 1e6:.3f} MS/s", r))
+        
+        sel = self.query_one("#rate-select", Select)
+        sel.set_options(opts)
+        
+    def watch_rate(self, value: int) -> None:
+        try:
+            sel = self.query_one("#rate-select", Select)
+            sel.value = value
+        except Exception:
+            pass
+
     def compose(self) -> ComposeResult:
         self.border_title = "RATE"
         yield Select(
             [
-                ("1.0 MS/s", 1000000),
-                ("2.0 MS/s", 2000000),
-                ("2.4 MS/s", 2400000),
-                ("3.2 MS/s", 3200000),
+                ("1.000 MS/s", 1000000),
+                ("2.000 MS/s", 2000000),
+                ("2.400 MS/s", 2400000),
+                ("3.200 MS/s", 3200000),
             ],
             id="rate-select",
         )
@@ -195,7 +228,7 @@ class AudioSettingsChanged(Message):
 class AudioControl(Widget):
     DEFAULT_CSS = """
     AudioControl {
-        height: 10;
+        height: auto;
         border: solid #1e3a5c;
         border-title-color: #00b0ff;
         padding: 0 1;
@@ -339,7 +372,7 @@ class ZoomScaleControl(Widget):
 class DeviceControl(Widget):
     DEFAULT_CSS = """
     DeviceControl {
-        height: 6;
+        height: auto;
         border: solid #1e3a5c;
         border-title-color: #00b0ff;
         padding: 0 1;
@@ -361,6 +394,12 @@ class DeviceControl(Widget):
         with Horizontal(classes="dev-row"):
             yield Static("Status:", classes="dev-label")
             yield Static("...", id="dev-status", classes="dev-val")
+        with Horizontal(classes="dev-row"):
+            yield Static("Center:", classes="dev-label")
+            yield Static("...", id="dev-center", classes="dev-val")
+        with Horizontal(classes="dev-row"):
+            yield Static("Channel:", classes="dev-label")
+            yield Static("...", id="dev-channel", classes="dev-val")
         with Horizontal(classes="dev-row"):
             yield Static("Rate:", classes="dev-label")
             yield Static("...", id="dev-rate", classes="dev-val")

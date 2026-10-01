@@ -22,21 +22,26 @@ class ScannerWidget(Widget):
         layout: vertical;
     }
     #scanner-config {
-        height: 4;
+        height: auto;
         background: #131920;
         border-bottom: solid #1e88e5;
-        padding: 0 1;
+        padding: 1;
     }
     .cfg-col {
         width: 1fr;
-        height: 2;
+        height: auto;
     }
     .cfg-title {
         color: #546e7a;
         text-style: bold;
     }
-    .cfg-val {
+    .cfg-input {
+        width: 100%;
+        height: 1;
+        border: none;
+        background: #060a10;
         color: #eceff1;
+        margin-top: 1;
     }
     #scanner-progress {
         height: 1;
@@ -66,20 +71,21 @@ class ScannerWidget(Widget):
     total_steps: reactive[int] = reactive(0)
 
     def compose(self) -> ComposeResult:
+        from textual.widgets import Input
         with Vertical(id="scanner-config"):
             with Horizontal():
                 with Vertical(classes="cfg-col"):
-                    yield Label("START", classes="cfg-title")
-                    yield Label("N/A", id="lbl-start", classes="cfg-val")
+                    yield Label("START (MHz)", classes="cfg-title")
+                    yield Input("90.0", id="inp-start", classes="cfg-input")
                 with Vertical(classes="cfg-col"):
-                    yield Label("STOP", classes="cfg-title")
-                    yield Label("N/A", id="lbl-stop", classes="cfg-val")
+                    yield Label("STOP (MHz)", classes="cfg-title")
+                    yield Input("110.0", id="inp-stop", classes="cfg-input")
                 with Vertical(classes="cfg-col"):
-                    yield Label("STEP", classes="cfg-title")
-                    yield Label("N/A", id="lbl-step", classes="cfg-val")
+                    yield Label("STEP (kHz)", classes="cfg-title")
+                    yield Input("100", id="inp-step", classes="cfg-input")
                 with Vertical(classes="cfg-col"):
-                    yield Label("DWELL", classes="cfg-title")
-                    yield Label("N/A", id="lbl-dwell", classes="cfg-val")
+                    yield Label("DWELL (ms)", classes="cfg-title")
+                    yield Input("100", id="inp-dwell", classes="cfg-input")
             yield ProgressBar(id="scanner-progress", show_eta=False)
 
         yield DataTable(id="scanner-table")
@@ -100,14 +106,11 @@ class ScannerWidget(Widget):
         self.scanned_count = 0
         self.progress = 0.0
 
-        self.query_one("#lbl-start", Label).update(
-            f"{config.start_frequency / 1e6:.3f} MHz"
-        )
-        self.query_one("#lbl-stop", Label).update(
-            f"{config.stop_frequency / 1e6:.3f} MHz"
-        )
-        self.query_one("#lbl-step", Label).update(f"{config.step / 1e3:.0f} kHz")
-        self.query_one("#lbl-dwell", Label).update(f"{config.dwell_time * 1000:.0f} ms")
+        from textual.widgets import Input
+        self.query_one("#inp-start", Input).value = f"{config.start_frequency / 1e6:.3f}"
+        self.query_one("#inp-stop", Input).value = f"{config.stop_frequency / 1e6:.3f}"
+        self.query_one("#inp-step", Input).value = f"{config.step / 1e3:.0f}"
+        self.query_one("#inp-dwell", Input).value = f"{config.dwell_time * 1000:.0f}"
 
         pb = self.query_one(ProgressBar)
         pb.total = total_steps

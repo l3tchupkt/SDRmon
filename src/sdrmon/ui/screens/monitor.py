@@ -248,11 +248,25 @@ class MonitorScreen(Screen):
 
         # Init Controls
         try:
-            from sdrmon.ui.widgets.controls import FrequencyControl, GainControl
+            from sdrmon.ui.widgets.controls import FrequencyControl, GainControl, RateControl
 
-            self.query_one("#ctrl-freq", FrequencyControl).frequency = freq
+            freq_ctrl = self.query_one("#ctrl-freq", FrequencyControl)
+            freq_ctrl.frequency = freq
+            
+            cap = self.device.capabilities
+            if cap.frequency_min:
+                freq_ctrl.min_freq = cap.frequency_min
+            if cap.frequency_max:
+                freq_ctrl.max_freq = cap.frequency_max
+                
             if isinstance(gain, (int, float)):
                 self.query_one("#ctrl-gain", GainControl).gain = gain
+            
+            if cap.sample_rates:
+                rate_ctrl = self.query_one("#ctrl-rate", RateControl)
+                rate_ctrl.set_supported_rates(cap.sample_rates)
+                rate_ctrl.rate = rate
+                
         except Exception:
             pass
 
@@ -273,8 +287,14 @@ class MonitorScreen(Screen):
             return
         cfg = self.controller.config
         info = self.device.info
+        
+        ch_freq = cfg.frequency
+        mgr = self.controller.channel_manager
+        if mgr and mgr.channels:
+            ch_freq = int(mgr.channels[0].frequency)
 
-        freq_s = fmt_freq(cfg.frequency)
+        freq_center_s = fmt_freq(cfg.frequency)
+        freq_ch_s = fmt_freq(ch_freq)
         span_s = fmt_rate(cfg.sample_rate).replace("S/s", "Hz")
         peak_s = f"{peak:.1f} dBFS" if peak is not None else "--"
 
@@ -287,8 +307,14 @@ class MonitorScreen(Screen):
         try:
             self.query_one("#dev-name", Static).update(info.product)
             self.query_one("#dev-status", Static).update(status_s)
+            self.query_one("#dev-center", Static).update(freq_center_s)
+            self.query_one("#dev-channel", Static).update(freq_ch_s)
             self.query_one("#dev-rate", Static).update(span_s)
             self.query_one("#dev-peak", Static).update(peak_s)
+            
+            # Update Header with Channel frequency
+            hdr = self.query_one(SDRmonHeader)
+            hdr.frequency = ch_freq
 
             # Update Zoom/Scale labels
             self.query_one("#sz-val", Static).update(f"{self._spectrum_zoom:.1f}x")
@@ -383,14 +409,19 @@ class MonitorScreen(Screen):
             return
         try:
             self.device.set_gain(message.gain)
+            actual_gain = self.device.get_gain()
+            
+            from sdrmon.ui.widgets.controls import GainControl
+            self.query_one("#ctrl-gain", GainControl).gain = float(actual_gain)
+
             self.controller.config = StreamConfig(
                 frequency=self.controller.config.frequency,
                 sample_rate=self.controller.config.sample_rate,
-                gain=message.gain,
+                gain=actual_gain,
             )
-            self.query_one(SDRmonHeader).gain = message.gain
+            self.query_one(SDRmonHeader).gain = actual_gain
             self._update_device_info()
-            self.query_one(EventLog).log(f"Gain → {message.gain:.1f} dB", "info")
+            self.query_one(EventLog).log(f"Gain → {actual_gain} dB", "info")
         except Exception as e:
             self.query_one(EventLog).log(f"Gain error: {e}", "error")
 
@@ -399,14 +430,19 @@ class MonitorScreen(Screen):
             return
         try:
             self.device.set_sample_rate(message.rate)
+            actual_rate = self.device.get_sample_rate()
+            
+            from sdrmon.ui.widgets.controls import RateControl
+            self.query_one("#ctrl-rate", RateControl).rate = actual_rate
+
             self.controller.config = StreamConfig(
                 frequency=self.controller.config.frequency,
-                sample_rate=message.rate,
+                sample_rate=actual_rate,
                 gain=self.controller.config.gain,
             )
-            self.query_one(SDRmonHeader).sample_rate = message.rate
+            self.query_one(SDRmonHeader).sample_rate = actual_rate
             self._update_device_info()
-            self.query_one(EventLog).log(f"Rate → {fmt_rate(message.rate)}", "info")
+            self.query_one(EventLog).log(f"Rate → {fmt_rate(actual_rate)}", "info")
         except Exception as e:
             self.query_one(EventLog).log(f"Rate error: {e}", "error")
 

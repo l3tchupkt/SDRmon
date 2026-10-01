@@ -46,20 +46,30 @@ class DeviceEntry:
 
 
 def _build_entries(devices: list[DeviceInfo]) -> list[DeviceEntry]:
+    # Sort: hardware first (driver != fake), fake second
+    hw_devices = [d for d in devices if d.driver != "fake"]
+    fake_devices = [d for d in devices if d.driver == "fake"]
+    
     entries: list[DeviceEntry] = []
-    for d in devices:
+    for d in hw_devices:
+        entries.append(
+            DeviceEntry(info=d, label=f"{d.vendor} {d.product}", sub=d.device_id)
+        )
+    for d in fake_devices:
         entries.append(
             DeviceEntry(info=d, label=f"{d.vendor} {d.product}", sub=d.device_id)
         )
 
-    entries.append(
-        DeviceEntry(
-            info=None,
-            label="FakeSDR",
-            sub="Synthetic signal source",
-            is_fake=True,
+    # If no fake devices were discovered by the backend for some reason, provide a fallback.
+    if not fake_devices:
+        entries.append(
+            DeviceEntry(
+                info=None,
+                label="FakeSDR",
+                sub="Synthetic signal source",
+                is_fake=True,
+            )
         )
-    )
 
     entries.append(
         DeviceEntry(
