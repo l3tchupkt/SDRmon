@@ -4,9 +4,10 @@ Device selection modal.
 
 from __future__ import annotations
 
+from textual import work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Button, Label, ListView, Static
+from textual.widgets import Button, Label, ListItem, ListView, Static
 
 from sdrmon.core.device import DeviceInfo
 from sdrmon.devices.manager import SDRManager
@@ -83,12 +84,21 @@ class DeviceModal(SDRmonModal):
     def on_mount(self) -> None:
         self._refresh_devices()
 
+    @work(thread=True, exclusive=True)
     def _refresh_devices(self) -> None:
+        self.app.call_from_thread(self._show_loading)
         try:
             physical = SDRManager.discover()
         except Exception:
             physical = []
+        self.app.call_from_thread(self._populate_list, physical)
 
+    def _show_loading(self) -> None:
+        lv = self.query_one("#device-list", ListView)
+        lv.clear()
+        lv.append(ListItem(Static("Discovering devices..."), id="loading-item"))
+
+    def _populate_list(self, physical: list[DeviceInfo]) -> None:
         self._entries = _build_entries(physical)
         lv = self.query_one("#device-list", ListView)
         lv.clear()

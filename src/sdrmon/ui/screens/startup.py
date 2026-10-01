@@ -4,6 +4,7 @@ Startup screen — device discovery and selection.
 
 from __future__ import annotations
 
+from textual import work
 from textual.app import ComposeResult
 from textual.containers import Center, Horizontal, Vertical
 from textual.screen import Screen
@@ -186,14 +187,23 @@ class StartupScreen(Screen):
         hdr.mode = AppMode.DEVICE_SELECT
         self._refresh_devices()
 
+    @work(thread=True, exclusive=True)
     def _refresh_devices(self) -> None:
-        status = self.query_one("#startup-status", Static)
-        status.update("[#ffea00]Scanning for devices…[/#ffea00]")
+        self.app.call_from_thread(self._start_refresh_ui)
         try:
             physical = SDRManager.discover()
         except Exception:
             physical = []
+        self.app.call_from_thread(self._finish_refresh_ui, physical)
 
+    def _start_refresh_ui(self) -> None:
+        status = self.query_one("#startup-status", Static)
+        status.update("[#ffea00]Scanning for devices…[/#ffea00]")
+        lv = self.query_one("#device-list", ListView)
+        lv.clear()
+
+    def _finish_refresh_ui(self, physical: list[DeviceInfo]) -> None:
+        status = self.query_one("#startup-status", Static)
         self._entries = _build_entries(physical)
 
         lv = self.query_one("#device-list", ListView)

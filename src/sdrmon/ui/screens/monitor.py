@@ -77,30 +77,39 @@ class MonitorScreen(Screen):
     }
     #spectrum {
         height: 1fr;
-        border-top: solid #1e3a5c;
+        border: solid #1e3a5c;
+        border-title-color: #00b0ff;
+        border-title-style: bold;
         background: #060a10;
     }
     #waterfall {
         height: 1fr;
-        border-top: solid #1e3a5c;
+        border: solid #1e3a5c;
+        border-title-color: #00b0ff;
+        border-title-style: bold;
         background: #060a10;
     }
     #info-container {
-        height: 5;
-        border-top: solid #1e88e5;
-        background: #131920;
+        height: 8;
+        layout: horizontal;
     }
     #device-info {
         width: 1fr;
+        height: 100%;
+        border: solid #1e88e5;
+        border-title-color: #00b0ff;
+        border-title-style: bold;
+        background: #131920;
         padding: 0 1;
         color: #b0bec5;
     }
     #info-container > EventLog {
         width: 1fr;
         height: 100%;
-        border: none;
-        border-left: solid #1a3a5c;
-        background: transparent;
+        border: solid #1e88e5;
+        border-title-color: #00b0ff;
+        border-title-style: bold;
+        background: #131920;
     }
     """
 
@@ -155,6 +164,11 @@ class MonitorScreen(Screen):
         yield ftr
 
     def on_mount(self) -> None:
+        self.query_one("#spectrum", SpectrumWidget).border_title = "SPECTRUM"
+        self.query_one("#waterfall", WaterfallWidget).border_title = "WATERFALL"
+        self.query_one("#device-info", Static).border_title = "DEVICE"
+        self.query_one("#event-log", EventLog).border_title = "EVENTS"
+
         try:
             freq = self.device.get_frequency() or 100_000_000
         except Exception:
@@ -463,7 +477,17 @@ class MonitorScreen(Screen):
                 self.controller.start()
 
         self.app.push_screen(ScannerScreen(self.device, scan_cfg), on_dismiss)
+    def action_zoom_in(self) -> None:
+        self._zoom = min(self._zoom * 2.0, 32.0)
+        self.query_one(SpectrumWidget).set_zoom(self._zoom)
+        self.query_one(EventLog).log(f"Zoom: {self._zoom:.1f}x", "info")
+        self._update_device_info()
 
+    def action_zoom_out(self) -> None:
+        self._zoom = max(self._zoom / 2.0, 1.0)
+        self.query_one(SpectrumWidget).set_zoom(self._zoom)
+        self.query_one(EventLog).log(f"Zoom: {self._zoom:.1f}x", "info")
+        self._update_device_info()
     def action_capture(self) -> None:
         if not self.controller:
             return

@@ -62,7 +62,8 @@ class UIController:
             self._stream.close()
 
         if self._thread:
-            self._thread.join(timeout=2.0)
+            # We don't join to avoid blocking the UI thread.
+            # The daemon thread will exit once _stop_event is set and stream closes.
             self._thread = None
 
         self._stream = None

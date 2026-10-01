@@ -4,9 +4,9 @@ Scanner screen — full-screen RF scanner.
 
 from __future__ import annotations
 
-import threading
-from typing import Any, Optional
+from typing import Any
 
+from textual import work
 from textual.app import ComposeResult
 from textual.message import Message
 from textual.screen import Screen
@@ -74,7 +74,6 @@ class ScannerScreen(Screen):
         self.device = device
         self.config = config
         self.scanner = Scanner(self.device)
-        self._thread: Optional[threading.Thread] = None
         self._scanning = False
 
     def compose(self) -> ComposeResult:
@@ -123,10 +122,10 @@ class ScannerScreen(Screen):
         self._scanning = True
         widget = self.query_one(ScannerWidget)
         widget.clear_results()
-        self._thread = threading.Thread(target=self._scan_worker, daemon=True)
-        self._thread.start()
+        self._scan_worker()
         self.query_one(EventLog).log("Scan started", "success")
 
+    @work(thread=True)
     def _scan_worker(self) -> None:
         try:
             for result in self.scanner.scan(self.config):
@@ -138,8 +137,6 @@ class ScannerScreen(Screen):
     def on_unmount(self) -> None:
         self.scanner.cancel()
         self._scanning = False
-        if self._thread:
-            self._thread.join(timeout=2.0)
 
     def action_cancel_scan(self) -> None:
         self.scanner.cancel()
