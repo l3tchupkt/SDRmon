@@ -24,12 +24,20 @@ def run(args: argparse.Namespace) -> None:
 
     table = Table(title="Connected SDR Devices")
     table.add_column("Index", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Device ID", style="blue")
     table.add_column("Driver", style="magenta")
     table.add_column("Vendor", style="green")
     table.add_column("Product", style="green")
     table.add_column("Serial", style="yellow")
 
     for i, dev in enumerate(devices):
-        table.add_row(str(i), dev.driver, dev.vendor, dev.product, dev.serial or "N/A")
+        table.add_row(
+            str(i),
+            dev.device_id,
+            dev.driver,
+            dev.vendor,
+            dev.product,
+            dev.serial or "N/A",
+        )
 
     console.print(table)

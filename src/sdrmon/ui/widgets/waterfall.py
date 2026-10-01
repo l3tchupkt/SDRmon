@@ -24,6 +24,7 @@ class WaterfallWidget(Widget):
     # Power bounds for color mapping
     min_power: reactive[float] = reactive(-100.0)
     max_power: reactive[float] = reactive(0.0)
+    zoom: reactive[float] = reactive(1.0)
 
     DEFAULT_CSS = """
     WaterfallWidget {
@@ -92,6 +93,12 @@ class WaterfallWidget(Widget):
         self._resize_buffer(width)
 
         power = result.power
+        if self.zoom > 1.0:
+            n = len(power)
+            keep = max(1, int(n / self.zoom))
+            start = (n - keep) // 2
+            power = power[start : start + keep]
+
         p_max = float(np.max(power))
         p_min = float(np.min(power))
 

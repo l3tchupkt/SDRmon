@@ -44,22 +44,31 @@ class SpectrumWidget(Widget):
         self._last_max_power = 0.0
         self._last_min_power = -100.0
         self.result: SpectrumResult | None = None
+        self.auto_scale_enabled = True
+        self.manual_range = 100.0
+        self.manual_ref = 0.0
 
     def update_result(self, new_result: SpectrumResult) -> None:
         self.result = new_result
         if new_result is not None:
-            # Auto-scale
-            power = new_result.power
-            p_max = float(np.max(power))
-            p_min = float(np.min(power))
+            if self.auto_scale_enabled:
+                # Auto-scale
+                power = new_result.power
+                p_max = float(np.max(power))
+                p_min = float(np.min(power))
 
-            # Add some padding and hysteresis
-            target_max = p_max + 10.0
-            target_min = max(p_min - 10.0, -120.0)
+                # Add some padding and hysteresis
+                target_max = p_max + 10.0
+                target_min = max(p_min - 10.0, -120.0)
 
-            # Smoothly approach
-            self.max_power = self._last_max_power * 0.9 + target_max * 0.1
-            self.min_power = self._last_min_power * 0.9 + target_min * 0.1
+                # Smoothly approach
+                self.max_power = self._last_max_power * 0.9 + target_max * 0.1
+                self.min_power = self._last_min_power * 0.9 + target_min * 0.1
+
+                self.manual_ref = self.max_power
+            else:
+                self.max_power = self.manual_ref
+                self.min_power = self.manual_ref - self.manual_range
 
             self._last_max_power = self.max_power
             self._last_min_power = self.min_power
@@ -80,7 +89,10 @@ class SpectrumWidget(Widget):
         # We will draw the spectrum bars.
         # A bar height is proportional to the power.
 
-        # Downsample the frequency data to terminal width
+        # We reserve 8 chars for the Y axis
+        chart_width = max(1, width - 8)
+
+        # Downsample the frequency data to chart width
         power = self.result.power
         # Apply zoom: show only the center portion
         if self.zoom > 1.0:
@@ -95,7 +107,7 @@ class SpectrumWidget(Widget):
         # Aggregate bins (max-preserving)
         from sdrmon.ui.rendering import aggregate_spectrum
 
-        downsampled = aggregate_spectrum(power, width, self.min_power)
+        downsampled = aggregate_spectrum(power, chart_width, self.min_power)
 
         # Draw the line
         segments = []
@@ -110,6 +122,12 @@ class SpectrumWidget(Widget):
             freqs = self.result.frequencies
             if len(freqs) == 0:
                 return Strip([Segment(" " * width)])
+
+            if self.zoom > 1.0:
+                n = len(freqs)
+                keep = max(1, int(n / self.zoom))
+                start = (n - keep) // 2
+                freqs = freqs[start : start + keep]
 
             f_min = freqs[0]
             f_max = freqs[-1]
@@ -129,19 +147,19 @@ class SpectrumWidget(Widget):
             s_cen = fmt(f_center)
 
             # Simple layout
-            line = " " * width
+            line = " " * chart_width
             # Left align min
             line = s_min + line[len(s_min) :]
             # Center align cen
-            cen_pos = max(0, width // 2 - len(s_cen) // 2)
+            cen_pos = max(0, chart_width // 2 - len(s_cen) // 2)
             line = line[:cen_pos] + s_cen + line[cen_pos + len(s_cen) :]
             # Right align max
-            max_pos = width - len(s_max)
+            max_pos = chart_width - len(s_max)
             if max_pos > cen_pos + len(s_cen):
                 line = line[:max_pos] + s_max
 
             # If there's a peak, also show it on the top line? Let's just return the strip
-            return Strip([Segment(line, Style(color="yellow"))])
+            return Strip([Segment(" " * 8 + line, Style(color="yellow"))])
 
         # Draw the spectrum bars
         # Adjust height because we stole 1 line for labels
@@ -168,5 +186,17 @@ class SpectrumWidget(Widget):
                 char_idx = int(ratio * len(self._block_chars))
                 char_idx = max(0, min(len(self._block_chars) - 1, char_idx))
                 segments.append(Segment(self._block_chars[char_idx], style))
+
+        # Build Y-axis prefix
+        prefix = "        "
+        if y % 4 == 0 or y == 0 or y == usable_height - 1:
+            val = int(power_top)
+            prefix = f"{val:4d} dB ┤"
+            if len(prefix) > 8:
+                prefix = prefix[-8:]
+            elif len(prefix) < 8:
+                prefix = prefix.rjust(8)
+
+        segments.insert(0, Segment(prefix, Style(color="cyan")))
 
         return Strip(segments)

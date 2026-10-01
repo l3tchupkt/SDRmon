@@ -30,11 +30,13 @@ def test_hackrf_backend_detect_with_devices(mock_libhackrf):
     mock_list_ptr = MagicMock()
     mock_list_ptr.contents.devicecount = 2
     mock_list_ptr.contents.serial_numbers = [
-        MagicMock(spec=int), # Just placeholders
+        MagicMock(spec=int),  # Just placeholders
         MagicMock(spec=int),
     ]
 
-    with patch("ctypes.string_at", side_effect=[b"0000000000000001", b"0000000000000002"]):
+    with patch(
+        "ctypes.string_at", side_effect=[b"0000000000000001", b"0000000000000002"]
+    ):
         mock_libhackrf.hackrf_device_list.return_value = mock_list_ptr
 
         backend = HackRFBackend()
@@ -46,7 +48,15 @@ def test_hackrf_backend_detect_with_devices(mock_libhackrf):
 
 
 def test_hackrf_device_lifecycle(mock_libhackrf):
-    info = DeviceInfo(driver="hackrf", product="HackRF One", vendor="GSG", serial="123", bus=None, usb_vid=None, usb_pid=None)
+    info = DeviceInfo(
+        driver="hackrf",
+        product="HackRF One",
+        vendor="GSG",
+        serial="123",
+        bus=None,
+        usb_vid=None,
+        usb_pid=None,
+    )
     dev = HackRFDevice(info)
 
     mock_libhackrf.hackrf_open_by_serial.return_value = 0
@@ -61,9 +71,17 @@ def test_hackrf_device_lifecycle(mock_libhackrf):
 
 
 def test_hackrf_device_config(mock_libhackrf):
-    info = DeviceInfo(driver="hackrf", product="HackRF One", vendor="GSG", serial="123", bus=None, usb_vid=None, usb_pid=None)
+    info = DeviceInfo(
+        driver="hackrf",
+        product="HackRF One",
+        vendor="GSG",
+        serial="123",
+        bus=None,
+        usb_vid=None,
+        usb_pid=None,
+    )
     dev = HackRFDevice(info)
-    dev._dev = MagicMock() # bypass open
+    dev._dev = MagicMock()  # bypass open
 
     # Frequency
     mock_libhackrf.hackrf_set_freq.return_value = 0
@@ -72,7 +90,7 @@ def test_hackrf_device_config(mock_libhackrf):
     assert dev.get_frequency() == 433_000_000
 
     with pytest.raises(ValueError):
-        dev.set_frequency(100_000) # out of range
+        dev.set_frequency(100_000)  # out of range
 
     # Sample rate
     mock_libhackrf.hackrf_set_sample_rate.return_value = 0
@@ -92,7 +110,15 @@ def test_hackrf_device_config(mock_libhackrf):
 
 
 def test_hackrf_stream(mock_libhackrf):
-    info = DeviceInfo(driver="hackrf", product="HackRF One", vendor="GSG", serial="123", bus=None, usb_vid=None, usb_pid=None)
+    info = DeviceInfo(
+        driver="hackrf",
+        product="HackRF One",
+        vendor="GSG",
+        serial="123",
+        bus=None,
+        usb_vid=None,
+        usb_pid=None,
+    )
     dev = HackRFDevice(info)
     dev._dev = MagicMock()
 
@@ -112,7 +138,7 @@ def test_hackrf_stream(mock_libhackrf):
     # Provide interleaved I,Q signed bytes
     # [127, 0, -128, 0, 0, 127, 0, -128]
     # => I=[127, -128, 0, 0] Q=[0, 0, 127, -128]
-    test_bytes = bytes([127, 0, 128, 0, 0, 127, 0, 128]) # 128 as byte is -128 signed
+    test_bytes = bytes([127, 0, 128, 0, 0, 127, 0, 128])  # 128 as byte is -128 signed
 
     with patch("ctypes.string_at", return_value=test_bytes):
         stream._rx_callback(mock_transfer_ptr)
@@ -121,7 +147,7 @@ def test_hackrf_stream(mock_libhackrf):
     assert len(block.samples) == 4
 
     # First sample I=127 -> ~0.992
-    assert np.isclose(block.samples[0].real, 127.0/128.0)
+    assert np.isclose(block.samples[0].real, 127.0 / 128.0)
     assert np.isclose(block.samples[0].imag, 0.0)
 
     # Second sample I=-128 -> -1.0

@@ -142,7 +142,10 @@ if libhackrf:
     libhackrf.hackrf_set_vga_gain.argtypes = [p_hackrf_device, c_uint32]
 
     libhackrf.hackrf_set_baseband_filter_bandwidth.restype = c_int
-    libhackrf.hackrf_set_baseband_filter_bandwidth.argtypes = [p_hackrf_device, c_uint32]
+    libhackrf.hackrf_set_baseband_filter_bandwidth.argtypes = [
+        p_hackrf_device,
+        c_uint32,
+    ]
 
     libhackrf.hackrf_board_partid_serialno_read.restype = c_int
     libhackrf.hackrf_board_partid_serialno_read.argtypes = [

@@ -22,13 +22,26 @@ from sdrmon.errors import (
     UnsupportedCapabilityError,
 )
 
-try:
-    from rtlsdr import RtlSdr  # type: ignore
+_rtlsdr_module = None
+_rtlsdr_init_attempted = False
 
-    HAVE_RTLSDR = True
-except Exception:
-    HAVE_RTLSDR = False
-    RtlSdr = Any  # type: ignore
+
+def get_rtlsdr_module() -> Any:
+    global _rtlsdr_module, _rtlsdr_init_attempted
+    if _rtlsdr_init_attempted:
+        return _rtlsdr_module
+
+    _rtlsdr_init_attempted = True
+    try:
+        import rtlsdr  # type: ignore
+
+        _rtlsdr_module = rtlsdr
+    except ImportError:
+        pass
+    except Exception:
+        pass
+
+    return _rtlsdr_module
 
 
 class RtlSdrStream(IQStream):
@@ -44,17 +57,27 @@ class RtlSdrStream(IQStream):
             raise StopIteration()
 
         try:
-            # Read 65536 samples (approx 32ms at 2 MS/s) to keep latency low and allow cancellation
-            samples = self.sdr.read_samples(65536)
+            # Read 65536 samples (approx 32ms at 2 MS/s)
+            raw_bytes = self.sdr.read_bytes(65536 * 2)
         except Exception as e:
             self._running = False
             raise StreamError(f"RTL-SDR read failed: {e}") from e
 
-        # the pyrtlsdr library converts uint8 to float values from -1.0 to 1.0.
-        # We ensure it is np.complex64.
+        # Explicitly implement the RTL-SDR uint8 interleaved IQ mapping
+        raw_data = np.frombuffer(raw_bytes, dtype=np.uint8)
+
+        # RTL-SDR yields unsigned 8-bit integers centered around 127.5
+        i_raw = raw_data[0::2].astype(np.float32)
+        q_raw = raw_data[1::2].astype(np.float32)
+
+        i = (i_raw - 127.5) / 127.5
+        q = (q_raw - 127.5) / 127.5
+
+        samples = (i + 1j * q).astype(np.complex64)
+
         gain = self.sdr.gain
         block = IQBlock(
-            samples=samples.astype(np.complex64),
+            samples=samples,
             sample_rate=int(self.sdr.sample_rate),
             center_frequency=int(self.sdr.center_freq),
             gain=float(gain) if gain != "auto" else None,
@@ -119,7 +142,8 @@ class RtlSdrDevice(SDRDevice):
         )
 
     def open(self) -> None:
-        if not HAVE_RTLSDR:
+        rtlsdr = get_rtlsdr_module()
+        if not rtlsdr:
             raise BackendUnavailableError(
                 "pyrtlsdr is not installed. Install with `pip install sdrmon[rtlsdr]`."
             )
@@ -129,11 +153,11 @@ class RtlSdrDevice(SDRDevice):
 
         try:
             if self._info.serial:
-                self._sdr = RtlSdr(serial_number=self._info.serial)  # type: ignore
+                self._sdr = rtlsdr.RtlSdr(serial_number=self._info.serial)
             elif self._info.bus:
-                self._sdr = RtlSdr(device_index=int(self._info.bus))  # type: ignore
+                self._sdr = rtlsdr.RtlSdr(device_index=int(self._info.bus))
             else:
-                self._sdr = RtlSdr()  # type: ignore
+                self._sdr = rtlsdr.RtlSdr()
         except Exception as e:
             msg = str(e).lower()
             if "not found" in msg or "no devices" in msg:
@@ -246,12 +270,13 @@ class RtlSdrBackend(SDRBackend):
         return "rtl_sdr"
 
     def detect(self) -> List[DeviceInfo]:
-        if not HAVE_RTLSDR:
+        rtlsdr = get_rtlsdr_module()
+        if not rtlsdr:
             return []
 
         devices: List[DeviceInfo] = []
         try:
-            device_count: int = int(RtlSdr.get_device_count())  # type: ignore
+            device_count: int = int(rtlsdr.RtlSdr.get_device_count())
         except Exception:
             return []
 
@@ -259,7 +284,7 @@ class RtlSdrBackend(SDRBackend):
             return []
 
         try:
-            serials = RtlSdr.get_device_serial_addresses()  # type: ignore
+            serials = rtlsdr.RtlSdr.get_device_serial_addresses()
         except Exception:
             serials = []
 

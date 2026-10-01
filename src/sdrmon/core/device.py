@@ -25,6 +25,14 @@ class DeviceInfo:
     usb_vid: int | None
     usb_pid: int | None
 
+    @property
+    def device_id(self) -> str:
+        if self.serial:
+            return f"{self.driver}:serial={self.serial}"
+        if self.bus is not None:
+            return f"{self.driver}:{self.bus}"
+        return f"{self.driver}:default"
+
 
 class SDRDevice(ABC):
     """Abstract interface for a software-defined radio device."""

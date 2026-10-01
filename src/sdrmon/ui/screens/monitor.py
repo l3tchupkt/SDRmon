@@ -127,6 +127,9 @@ class MonitorScreen(Screen):
         ("v", "toggle_view", "View"),
         ("+", "zoom_in", "Zoom In"),
         ("-", "zoom_out", "Zoom Out"),
+        ("]", "scale_up", "Scale Up"),
+        ("[", "scale_down", "Scale Down"),
+        ("a", "auto_scale", "Auto Scale"),
         ("?", "help", "Help"),
         ("l", "toggle_loop", "Toggle Loop"),
     ]
@@ -236,8 +239,11 @@ class MonitorScreen(Screen):
         win_s = self.controller.window.capitalize()
         peak_s = f"Peak {peak:.1f} dBFS" if peak is not None else "Peak --"
 
+        spec = self.query_one("#spectrum", SpectrumWidget)
+        scale_s = f"Scale {spec.manual_range:.0f} dB {'[AUTO]' if spec.auto_scale_enabled else '[MANUAL]'}"
+
         lines.append(
-            f"Center {freq_s}   Span {span_s}   {fft_s}   {win_s}   {peak_s}   {zoom_s}"
+            f"Center {freq_s}   Span {span_s}   {fft_s}   {win_s}   {peak_s}   {zoom_s}   {scale_s}"
         )
 
         try:
@@ -302,10 +308,11 @@ class MonitorScreen(Screen):
 
     def on_stream_error_msg(self, message: Any) -> None:
         log = self.query_one(EventLog)
-        log.log(f"Stream error: {message.error}", "error")
+        log.log(f"Hardware disconnect / stream error: {message.error}", "error")
+        self.app.notify(f"SDR Error: {message.error}", severity="error", timeout=10.0)
         try:
             hdr = self.query_one(SDRmonHeader)
-            hdr.is_paused = False
+            hdr.is_paused = True
         except Exception:
             pass
 
@@ -341,12 +348,33 @@ class MonitorScreen(Screen):
         self._zoom = min(8.0, self._zoom * 2.0)
         spec = self.query_one("#spectrum", SpectrumWidget)
         spec.zoom = self._zoom  # type: ignore[attr-defined]
+        wf = self.query_one("#waterfall", WaterfallWidget)
+        wf.zoom = self._zoom  # type: ignore[attr-defined]
         self._update_device_info()
 
     def action_zoom_out(self) -> None:
         self._zoom = max(0.125, self._zoom / 2.0)
         spec = self.query_one("#spectrum", SpectrumWidget)
         spec.zoom = self._zoom  # type: ignore[attr-defined]
+        wf = self.query_one("#waterfall", WaterfallWidget)
+        wf.zoom = self._zoom  # type: ignore[attr-defined]
+        self._update_device_info()
+
+    def action_scale_up(self) -> None:
+        spec = self.query_one("#spectrum", SpectrumWidget)
+        spec.manual_range = min(120.0, spec.manual_range + 20.0)
+        spec.auto_scale_enabled = False
+        self._update_device_info()
+
+    def action_scale_down(self) -> None:
+        spec = self.query_one("#spectrum", SpectrumWidget)
+        spec.manual_range = max(20.0, spec.manual_range - 20.0)
+        spec.auto_scale_enabled = False
+        self._update_device_info()
+
+    def action_auto_scale(self) -> None:
+        spec = self.query_one("#spectrum", SpectrumWidget)
+        spec.auto_scale_enabled = True
         self._update_device_info()
 
     def action_window(self) -> None:
@@ -479,8 +507,6 @@ class MonitorScreen(Screen):
                 self.controller.start()
 
         self.app.push_screen(ScannerScreen(self.device, scan_cfg), on_dismiss)
-
-
 
     def action_capture(self) -> None:
         if not self.controller:

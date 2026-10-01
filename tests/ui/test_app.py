@@ -38,7 +38,8 @@ def _fake_device(product: str = "FakeSDR") -> FakeSDRDevice:
 async def test_startup_screen_loads():
     """App without device shows startup screen."""
     app = SDRmonApp()
-    async with app.run_test():
+    async with app.run_test() as pilot:
+        await pilot.pause(0.2)
         # Startup screen should be active
         assert isinstance(app.screen, StartupScreen)
         # Device list should be present
@@ -283,6 +284,7 @@ async def test_monitor_device_select_back():
         await pilot.pause(0.3)
         # Should be showing DeviceModal now instead of StartupScreen
         from sdrmon.ui.screens.device_modal import DeviceModal
+
         assert isinstance(app.screen, DeviceModal)
 
     # Don't close dev since monitor cleaned it up

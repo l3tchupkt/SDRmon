@@ -30,9 +30,9 @@ class HackRFStream(IQStream):
         self._callback = self._rx_callback
 
         # Keep a reference to the CFUNCTYPE to prevent garbage collection
-        self._c_callback = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.POINTER(hackrf_transfer))(
-            self._callback
-        )
+        self._c_callback = ctypes.CFUNCTYPE(
+            ctypes.c_int, ctypes.POINTER(hackrf_transfer)
+        )(self._callback)
 
     def _rx_callback(self, transfer_ptr: Any) -> int:
         if not self._running:
@@ -153,12 +153,17 @@ class HackRFDevice(SDRDevice):
             sample_rate=True,
             gain=True,
             bandwidth=True,
-            bias_tee=False, # We map Amp as a separate concern, or keep bias tee false
+            bias_tee=False,  # We map Amp as a separate concern, or keep bias tee false
             transmit=False,
             # Common HackRF rates
             sample_rates=[
-                2_000_000, 4_000_000, 8_000_000, 10_000_000,
-                12_500_000, 16_000_000, 20_000_000
+                2_000_000,
+                4_000_000,
+                8_000_000,
+                10_000_000,
+                12_500_000,
+                16_000_000,
+                20_000_000,
             ],
             # Total gain: LNA (0..40, step 8) + VGA (0..62, step 2)
             gain_values=[float(x) for x in range(0, 103, 2)],
@@ -170,7 +175,9 @@ class HackRFDevice(SDRDevice):
 
         dev_ptr = ctypes.c_void_p()
         if self._info.serial:
-            res = libhackrf.hackrf_open_by_serial(self._info.serial.encode('utf-8'), ctypes.byref(dev_ptr))
+            res = libhackrf.hackrf_open_by_serial(
+                self._info.serial.encode("utf-8"), ctypes.byref(dev_ptr)
+            )
         else:
             res = libhackrf.hackrf_open(ctypes.byref(dev_ptr))
 
@@ -251,7 +258,7 @@ class HackRFDevice(SDRDevice):
             self.set_sample_rate(config.sample_rate)
             if config.gain is not None:
                 if isinstance(config.gain, str) and config.gain.lower() == "auto":
-                    self.set_gain(40.0) # Sensible default for auto
+                    self.set_gain(40.0)  # Sensible default for auto
                 else:
                     self.set_gain(float(config.gain))
 

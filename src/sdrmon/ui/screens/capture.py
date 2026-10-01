@@ -35,9 +35,7 @@ class CaptureScreen(SDRmonModal):
             yield Input(value=self.default_path, id="input-path")
 
             yield Label("Duration (seconds, optional)", classes="modal-hint")
-            yield Input(
-                placeholder="Leave empty for manual stop", id="input-duration"
-            )
+            yield Input(placeholder="Leave empty for manual stop", id="input-duration")
 
             with Horizontal(classes="btn-row"):
                 yield Button("Cancel", id="btn-cancel", classes="btn-cancel")

@@ -50,9 +50,9 @@ class DeviceEntry:
 def _build_entries(devices: list[DeviceInfo]) -> list[DeviceEntry]:
     entries: list[DeviceEntry] = []
     for d in devices:
-        serial_part = f" / {d.serial}" if d.serial else ""
-        sub = f"{d.driver}{serial_part}"
-        entries.append(DeviceEntry(info=d, label=f"{d.vendor} {d.product}", sub=sub))
+        entries.append(
+            DeviceEntry(info=d, label=f"{d.vendor} {d.product}", sub=d.device_id)
+        )
 
     entries.append(
         DeviceEntry(

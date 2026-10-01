@@ -71,17 +71,27 @@ class DeviceModal(SDRmonModal):
         super().__init__()
         self._entries: list[DeviceEntry] = []
 
+    BINDINGS = [
+        ("r", "refresh_devices", "Refresh Devices"),
+    ]
+
     def compose(self) -> ComposeResult:
         with Vertical(classes="modal-dialog"):
             yield Label("SELECT SDR DEVICE", classes="modal-title")
             yield ListView(id="device-list")
             with Horizontal(classes="btn-row"):
-                yield Label("↑↓ Select   Enter Open   r Refresh   Esc Cancel", classes="modal-hint")
+                yield Label(
+                    "↑↓ Select   Enter Open   r Refresh   Esc Cancel",
+                    classes="modal-hint",
+                )
                 yield Static("", classes="spacer", id="spacer-left")
                 yield Button("Cancel", id="btn-cancel", classes="btn-cancel")
                 yield Button("Open", id="btn-open", classes="btn-primary")
 
     def on_mount(self) -> None:
+        self._refresh_devices()
+
+    def action_refresh_devices(self) -> None:
         self._refresh_devices()
 
     @work(thread=True, exclusive=True)
@@ -129,6 +139,7 @@ class DeviceModal(SDRmonModal):
 
         if entry.is_fake:
             from sdrmon.backends.generic.fake import FakeSDRDevice
+
             info = DeviceInfo(
                 driver="fake",
                 product="FakeSDR",
