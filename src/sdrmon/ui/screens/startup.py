@@ -11,7 +11,6 @@ from textual.screen import Screen
 from textual.widgets import Button, ListItem, ListView, Static
 
 from sdrmon.core.device import DeviceInfo
-from sdrmon.devices.manager import SDRManager
 from sdrmon.ui.components import DEVICE_SHORTCUTS, AppMode, SDRmonFooter, SDRmonHeader
 
 LOGO_ART = """\
@@ -190,7 +189,10 @@ class StartupScreen(Screen):
     def _refresh_devices(self) -> None:
         self.app.call_from_thread(self._start_refresh_ui)
         try:
-            physical = SDRManager.discover()
+            from sdrmon.native.manager import NativeSDRManager
+
+            mgr = NativeSDRManager()
+            physical = mgr.discover()
         except Exception:
             physical = []
         self.app.call_from_thread(self._finish_refresh_ui, physical)
@@ -248,21 +250,11 @@ class StartupScreen(Screen):
             self._launch_device(entry)
 
     def action_use_fake(self) -> None:
-        from sdrmon.backends.generic.fake import FakeSDRDevice
-        from sdrmon.core.device import DeviceInfo
+        from sdrmon.native.manager import NativeSDRManager
 
-        info = DeviceInfo(
-            driver="fake",
-            product="FakeSDR",
-            vendor="Virtual",
-            serial="1",
-            bus=None,
-            usb_pid=None,
-            usb_vid=None,
-        )
-        dev = FakeSDRDevice(info, seed=42)
+        mgr = NativeSDRManager()
         try:
-            dev.open()
+            dev = mgr.open("fake:0")
         except Exception as e:
             self.notify(f"FakeSDR failed: {e}", severity="error")
             return
@@ -272,10 +264,13 @@ class StartupScreen(Screen):
         self.app.open_replay_browser()  # type: ignore[attr-defined]
 
     def _launch_device(self, entry: DeviceEntry) -> None:
-        if entry.info is None:
+        if entry.info is None or entry.info.bus is None:
             return
         try:
-            dev = SDRManager.open(entry.info)
+            from sdrmon.native.manager import NativeSDRManager
+
+            mgr = NativeSDRManager()
+            dev = mgr.open(entry.info.bus)
         except Exception as e:
             self.notify(f"Failed to open device: {e}", severity="error")
             return

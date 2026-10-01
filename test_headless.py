@@ -1,4 +1,5 @@
 import time
+
 from sdrmon.core.settings import StreamConfig
 from sdrmon.native.manager import NativeSDRManager
 from sdrmon.ui.controller import UIController

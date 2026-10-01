@@ -1,6 +1,7 @@
 import asyncio
-from sdrmon.ui.app import SDRmonApp
+
 from sdrmon.native.manager import NativeSDRManager
+from sdrmon.ui.app import SDRmonApp
 
 
 async def test_ui_updates():

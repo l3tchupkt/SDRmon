@@ -165,13 +165,13 @@ async def test_monitor_zoom():
         screen = app.screen
         assert isinstance(screen, MonitorScreen)
 
-        assert screen._zoom == 1.0
+        assert screen._spectrum_zoom == 1.0
         await pilot.press("+")
-        assert screen._zoom == 2.0
+        assert screen._spectrum_zoom == 2.0
         await pilot.press("+")
-        assert screen._zoom == 4.0
+        assert screen._spectrum_zoom == 4.0
         await pilot.press("-")
-        assert screen._zoom == 2.0
+        assert screen._spectrum_zoom == 2.0
 
     dev.close()
 
@@ -198,58 +198,40 @@ async def test_monitor_help_modal():
 
 @pytest.mark.asyncio
 async def test_monitor_freq_modal():
-    """f opens frequency modal."""
+    """f focuses frequency input."""
     dev = _fake_device()
     app = SDRmonApp(dev)
     async with app.run_test() as pilot:
         await pilot.pause(0.2)
-        from sdrmon.ui.components import FrequencyModal
-
         await pilot.press("f")
         await pilot.pause(0.1)
-        assert isinstance(app.screen, FrequencyModal)
-        await pilot.press("escape")
-        await pilot.pause(0.1)
-        assert isinstance(app.screen, MonitorScreen)
-
+        assert app.screen.query_one("#freq-input").has_focus
     dev.close()
 
 
 @pytest.mark.asyncio
 async def test_monitor_gain_modal():
-    """g opens gain modal."""
+    """g focuses gain slider."""
     dev = _fake_device()
     app = SDRmonApp(dev)
     async with app.run_test() as pilot:
         await pilot.pause(0.2)
-        from sdrmon.ui.components import GainModal
-
         await pilot.press("g")
         await pilot.pause(0.1)
-        assert isinstance(app.screen, GainModal)
-        await pilot.press("escape")
-        await pilot.pause(0.1)
-        assert isinstance(app.screen, MonitorScreen)
-
+        assert app.screen.query_one("#gain-slider").has_focus
     dev.close()
 
 
 @pytest.mark.asyncio
 async def test_monitor_samplerate_modal():
-    """s opens sample rate modal."""
+    """s focuses sample rate selector."""
     dev = _fake_device()
     app = SDRmonApp(dev)
     async with app.run_test() as pilot:
         await pilot.pause(0.2)
-        from sdrmon.ui.components import SampleRateModal
-
         await pilot.press("s")
         await pilot.pause(0.1)
-        assert isinstance(app.screen, SampleRateModal)
-        await pilot.press("escape")
-        await pilot.pause(0.1)
-        assert isinstance(app.screen, MonitorScreen)
-
+        assert app.screen.query_one("#rate-select").has_focus
     dev.close()
 
 

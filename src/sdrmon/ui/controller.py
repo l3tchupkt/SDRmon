@@ -6,21 +6,29 @@ import threading
 import time
 from typing import Optional
 
+from textual.message import Message
+
 from sdrmon.analysis.spectrum import SpectrumAnalyzer
+from sdrmon.audio.output import AudioOutput, NullAudioOutput
 from sdrmon.capture.recorder import IQRecorder
 from sdrmon.core.device import SDRDevice
 from sdrmon.core.settings import StreamConfig
 from sdrmon.core.stream import IQStream
+from sdrmon.dsp.channel import ChannelManager
 
-from textual.message import Message
+try:
+    from sdrmon.audio.output import SoundDeviceAudioOutput
+except Exception:
+    SoundDeviceAudioOutput = None
 
 
 class StreamErrorMsg(Message):
     """Sent when an error occurs in the background stream worker."""
 
-    def __init__(self, err: Exception):
+    def __init__(self, err: Exception, is_audio: bool = False):
         super().__init__()
         self.error = err
+        self.is_audio = is_audio
 
 
 class UIController:
@@ -48,6 +56,16 @@ class UIController:
         self._stop_event = threading.Event()
         self.recorder: Optional[IQRecorder] = None
 
+        self.audio_rate = 48000
+        self.channel_manager = ChannelManager(config.sample_rate, self.audio_rate)
+
+        self.audio_out: AudioOutput = NullAudioOutput()
+        if SoundDeviceAudioOutput:
+            try:
+                self.audio_out = SoundDeviceAudioOutput()
+            except Exception:
+                pass
+
     def start(self):
         """Start the background worker."""
         if self._running:
@@ -56,6 +74,8 @@ class UIController:
         self._analyzer = SpectrumAnalyzer(fft_size=self.fft_size, window=self.window)
         self._stream = self.device.stream(self.config)
         self._stream.start()
+
+        self.audio_out.start()
 
         self._running = True
         self._paused = False
@@ -70,6 +90,8 @@ class UIController:
 
         if self._stream:
             self._stream.close()
+
+        self.audio_out.stop()
 
         if self._thread:
             # We don't join to avoid blocking the UI thread.
@@ -97,6 +119,7 @@ class UIController:
 
     def set_sample_rate(self, rate: int):
         self.device.set_sample_rate(rate)
+        self.channel_manager.set_sdr_rate(rate)
         # Update config to keep in sync
         self.config = StreamConfig(
             frequency=self.device.get_frequency(),
@@ -139,6 +162,22 @@ class UIController:
                             self.recorder = None
 
                     now = time.monotonic()
+
+                    # DSP processing runs on every block to keep state and audio valid
+                    try:
+                        # Ensure channel manager knows correct SDR center
+                        # (in case the UI didn't update it yet)
+                        self.channel_manager.set_sdr_center(block.center_frequency)
+                        audio_chunks = self.channel_manager.process(block.samples)
+                        if audio_chunks:
+                            # We only support 1 channel mostly, grab the first one
+                            out_audio = audio_chunks[0]
+                            if len(out_audio) > 0:
+                                self.audio_out.write(out_audio)
+                    except Exception as e:
+                        # Audio error shouldn't crash the pipeline
+                        self.app.post_message(StreamErrorMsg(e, is_audio=True))
+
                     if now - last_update >= min_interval:
                         if self._analyzer:
                             result = self._analyzer.process(block)

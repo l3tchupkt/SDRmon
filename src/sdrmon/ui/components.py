@@ -233,72 +233,98 @@ class SDRmonFooter(Widget):
 
     DEFAULT_CSS = """
     SDRmonFooter {
-        height: 1;
+        height: 3;
         background: #0d47a1;
-        color: #b0bec5;
         padding: 0 1;
         layout: horizontal;
-        content-align: left middle;
+        align: left middle;
+    }
+    SDRmonFooter > Button {
+        height: 3;
+        min-width: 10;
+        margin: 0 1;
+        background: #1565c0;
+        color: #eceff1;
+        border: none;
+    }
+    SDRmonFooter > Button:focus {
+        background: #1976d2;
+        text-style: bold;
+    }
+    SDRmonFooter > Button:hover {
+        background: #1e88e5;
     }
     """
 
-    shortcuts: reactive[list[tuple[str, str]]] = reactive([])
+    shortcuts: reactive[list[tuple[str, str, str]]] = reactive([])
 
     def compose(self) -> ComposeResult:
-        yield Static("", id="footer-content")
+        yield Horizontal(id="footer-buttons")
 
-    def watch_shortcuts(self, value: list[tuple[str, str]]) -> None:
+    async def watch_shortcuts(self, value: list[tuple[str, str, str]]) -> None:
         try:
-            parts = []
-            for key, label in value:
-                parts.append(f"[#1e88e5]{key}[/#1e88e5] {label}")
-            self.query_one("#footer-content", Static).update("  ".join(parts))
+            container = self.query_one("#footer-buttons", Horizontal)
+            await container.query("Button").remove()
+            for key, label, action in value:
+                display = f"{label} [{key}]" if key else label
+                btn = Button(display, id=f"btn_action_{action}")
+                btn.can_focus = False  # Don't trap keyboard nav in footer
+                await container.mount(btn)
         except Exception:
             pass
 
-    def on_mount(self) -> None:
-        self.watch_shortcuts(self.shortcuts)
+    async def on_mount(self) -> None:
+        await self.watch_shortcuts(self.shortcuts)
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id and event.button.id.startswith("btn_action_"):
+            action = event.button.id[11:]
+            await self.screen.run_action(action)
 
 
-LIVE_SHORTCUTS: list[tuple[str, str]] = [
-    ("f", "Freq"),
-    ("g", "Gain"),
-    ("s", "Rate"),
-    ("+/-", "Zoom"),
-    ("v", "View"),
-    ("c", "Capture"),
-    ("r", "Replay"),
-    ("S", "Scan"),
-    ("d", "Device"),
-    ("space", "Pause"),
-    ("?", "Help"),
-    ("q", "Quit"),
+LIVE_SHORTCUTS: list[tuple[str, str, str]] = [
+    ("f", "Freq", "freq"),
+    ("g", "Gain", "gain"),
+    ("s", "Rate", "rate"),
+    ("-", "Zoom -", "zoom_out"),
+    ("+", "Zoom +", "zoom_in"),
+    ("[", "Scale -", "scale_down"),
+    ("]", "Scale +", "scale_up"),
+    ("a", "Auto", "auto_scale"),
+    ("v", "View", "toggle_view"),
+    ("c", "Cap", "capture"),
+    ("r", "Rep", "replay"),
+    ("S", "Scan", "scan"),
+    ("d", "Dev", "device_select"),
+    ("space", "Pause", "toggle_pause"),
+    ("?", "Help", "help"),
+    ("q", "Quit", "quit"),
 ]
 
-DEVICE_SHORTCUTS: list[tuple[str, str]] = [
-    ("↑↓", "Select"),
-    ("Enter", "Open"),
-    ("F", "FakeSDR"),
-    ("p", "Replay"),
-    ("r", "Refresh"),
-    ("q", "Quit"),
+DEVICE_SHORTCUTS: list[tuple[str, str, str]] = [
+    ("Enter", "Open", "open_selected"),
+    ("F", "FakeSDR", "use_fake"),
+    ("p", "Replay", "use_replay"),
+    ("r", "Refresh", "refresh"),
+    ("q", "Quit", "quit"),
 ]
 
-SCANNER_SHORTCUTS: list[tuple[str, str]] = [
-    ("Enter", "Start"),
-    ("space", "Pause"),
-    ("c", "Cancel"),
-    ("Esc", "Back"),
-    ("q", "Quit"),
+SCANNER_SHORTCUTS: list[tuple[str, str, str]] = [
+    ("Enter", "Start", "start"),
+    ("space", "Pause", "pause"),
+    ("c", "Cancel", "cancel"),
+    ("Esc", "Back", "back"),
+    ("q", "Quit", "quit"),
 ]
 
-REPLAY_SHORTCUTS: list[tuple[str, str]] = [
-    ("space", "Pause"),
-    ("r", "Restart"),
-    ("l", "Loop"),
-    ("+/-", "Speed"),
-    ("Esc", "Back"),
-    ("q", "Quit"),
+REPLAY_SHORTCUTS: list[tuple[str, str, str]] = [
+    ("space", "Pause", "toggle_pause"),
+    ("r", "Restart", "restart"),
+    ("l", "Loop", "toggle_loop"),
+    ("-", "Slower", "slower"),
+    ("+", "Faster", "faster"),
+    ("Esc", "Back", "back"),
+    ("q", "Quit", "quit"),
 ]
 
 
@@ -612,7 +638,7 @@ class EventLog(Widget):
 
     DEFAULT_CSS = """
     EventLog {
-        height: 4;
+        height: 1fr;
         border: solid #1a3a5c;
         background: #0a0e14;
         overflow-y: auto;
@@ -649,7 +675,7 @@ class EventLog(Widget):
 
     def _redraw(self) -> None:
         try:
-            content = "\n".join(self._entries[-8:])  # show last 8 visible
+            content = "\n".join(self._entries)
             self.query_one("#log-content", Static).update(content)
             self.scroll_end(animate=False)
         except Exception:

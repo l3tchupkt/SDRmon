@@ -14,24 +14,20 @@ from textual.widgets import Static
 from sdrmon.core.device import SDRDevice
 from sdrmon.core.settings import StreamConfig
 from sdrmon.ui.components import (
-    LIVE_SHORTCUTS,
     AppMode,
     EventLog,
-    FrequencyModal,
-    GainModal,
     HelpModal,
-    SampleRateModal,
-    SDRmonFooter,
     SDRmonHeader,
     fmt_freq,
     fmt_rate,
 )
 from sdrmon.ui.controller import UIController
+from sdrmon.ui.widgets.controls import AudioSettingsChanged
 from sdrmon.ui.widgets.spectrum import (
     SpectrumClick,
     SpectrumUpdated,
     SpectrumWidget,
-    SpectrumZoom,
+    ZoomMessage,
 )
 from sdrmon.ui.widgets.waterfall import WaterfallWidget
 
@@ -72,11 +68,12 @@ class MonitorScreen(Screen):
         background: #0a0e14;
         layout: vertical;
     }
-    #monitor-main {
+    #monitor-body {
+        layout: horizontal;
         height: 1fr;
-        layout: vertical;
     }
     #vis-container {
+        width: 1fr;
         height: 1fr;
         layout: vertical;
     }
@@ -94,27 +91,41 @@ class MonitorScreen(Screen):
         border-title-style: bold;
         background: #060a10;
     }
-    #info-container {
-        height: 8;
-        layout: horizontal;
-    }
-    #device-info {
-        width: 1fr;
+    #control-sidebar {
+        width: 48;
         height: 100%;
-        border: solid #1e88e5;
-        border-title-color: #00b0ff;
-        border-title-style: bold;
-        background: #131920;
-        padding: 0 1;
-        color: #b0bec5;
+        border-left: solid #1e3a5c;
+        background: #060a10;
+        layout: vertical;
     }
-    #info-container > EventLog {
-        width: 1fr;
-        height: 100%;
-        border: solid #1e88e5;
+    #sidebar-scroll {
+        width: 100%;
+        height: 1fr;
+        layout: vertical;
+    }
+    #event-log {
+        height: 1fr;
+        min-height: 5;
+        border: solid #1e3a5c;
         border-title-color: #00b0ff;
-        border-title-style: bold;
         background: #131920;
+    }
+
+    #monitor-body.narrow {
+        layout: vertical;
+    }
+    #monitor-body.narrow > #control-sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 20;
+        border-left: none;
+        border-top: solid #1e3a5c;
+    }
+    #monitor-body.narrow #sidebar-scroll {
+        height: auto;
+    }
+    #monitor-body.narrow #event-log {
+        height: 6;
     }
     """
 
@@ -144,7 +155,8 @@ class MonitorScreen(Screen):
         self.device = device
         self.controller: UIController | None = None
         self._view_mode = ViewMode.BOTH
-        self._zoom = 1.0
+        self._spectrum_zoom = 1.0
+        self._waterfall_zoom = 1.0
         self._mode = (
             AppMode.STARTING if device.info.driver != "replay" else AppMode.REPLAY
         )
@@ -159,25 +171,47 @@ class MonitorScreen(Screen):
         hdr.mode = self._mode
         yield hdr
 
-        from textual.containers import Horizontal, Vertical
+        from textual.containers import Horizontal, Vertical, VerticalScroll
 
-        with Vertical(id="monitor-main"):
+        from sdrmon.ui.widgets.controls import (
+            ActionButtons,
+            AudioControl,
+            DeviceControl,
+            FrequencyControl,
+            GainControl,
+            RateControl,
+            ZoomScaleControl,
+        )
+
+        with Horizontal(id="monitor-body"):
             with Vertical(id="vis-container"):
                 yield SpectrumWidget(id="spectrum")
                 yield WaterfallWidget(id="waterfall")
 
-            with Horizontal(id="info-container"):
-                yield Static(id="device-info")
-                yield EventLog(id="event-log")
+            with Vertical(id="control-sidebar"):
+                with VerticalScroll(id="sidebar-scroll"):
+                    yield FrequencyControl(id="ctrl-freq")
+                    yield GainControl(id="ctrl-gain")
+                    yield RateControl(id="ctrl-rate")
+                    yield ZoomScaleControl(id="ctrl-zoom")
+                    yield AudioControl(id="ctrl-audio")
+                    yield DeviceControl(id="ctrl-device")
+                    yield EventLog(id="event-log")
+                yield ActionButtons(id="ctrl-actions")
 
-        ftr = SDRmonFooter(id="monitor-footer")
-        ftr.shortcuts = LIVE_SHORTCUTS
-        yield ftr
+    def on_resize(self, event: Any) -> None:
+        try:
+            body = self.query_one("#monitor-body")
+            if event.size.width < 110:
+                body.add_class("narrow")
+            else:
+                body.remove_class("narrow")
+        except Exception:
+            pass
 
     def on_mount(self) -> None:
         self.query_one("#spectrum", SpectrumWidget).border_title = "SPECTRUM"
         self.query_one("#waterfall", WaterfallWidget).border_title = "WATERFALL"
-        self.query_one("#device-info", Static).border_title = "DEVICE"
         self.query_one("#event-log", EventLog).border_title = "EVENTS"
 
         try:
@@ -212,6 +246,16 @@ class MonitorScreen(Screen):
         elif isinstance(gain, str):
             hdr.gain = gain
 
+        # Init Controls
+        try:
+            from sdrmon.ui.widgets.controls import FrequencyControl, GainControl
+
+            self.query_one("#ctrl-freq", FrequencyControl).frequency = freq
+            if isinstance(gain, (int, float)):
+                self.query_one("#ctrl-gain", GainControl).gain = gain
+        except Exception:
+            pass
+
         self._update_device_info()
         log = self.query_one(EventLog)
         log.log(
@@ -230,31 +274,30 @@ class MonitorScreen(Screen):
         cfg = self.controller.config
         info = self.device.info
 
-        # Build dense info block
-        lines = []
-        lines.append("[bold #00b0ff]DEVICE[/bold #00b0ff]")
-
-        vendor_prod = f"{info.vendor} / {info.product}"
-        if info.serial:
-            vendor_prod += f" / {info.serial}"
-        lines.append(f"[bold]{vendor_prod}[/bold]")
-
         freq_s = fmt_freq(cfg.frequency)
         span_s = fmt_rate(cfg.sample_rate).replace("S/s", "Hz")
-        zoom_s = f"Zoom {self._zoom:.1f}×"
-        fft_s = f"FFT {self.controller.fft_size}"
-        win_s = self.controller.window.capitalize()
-        peak_s = f"Peak {peak:.1f} dBFS" if peak is not None else "Peak --"
+        peak_s = f"{peak:.1f} dBFS" if peak is not None else "--"
 
-        spec = self.query_one("#spectrum", SpectrumWidget)
-        scale_s = f"Scale {spec.manual_range:.0f} dB {'[AUTO]' if spec.auto_scale_enabled else '[MANUAL]'}"
-
-        lines.append(
-            f"Center {freq_s}   Span {span_s}   {fft_s}   {win_s}   {peak_s}   {zoom_s}   {scale_s}"
-        )
+        status_s = "[#00e676]● LIVE[/]"
+        if self._mode == AppMode.REPLAY:
+            status_s = "[#00b0ff]► REPLAY[/]"
+        elif self._mode == AppMode.STARTING:
+            status_s = "[#ffff00]● STARTING[/]"
 
         try:
-            self.query_one("#device-info", Static).update("\n".join(lines))
+            self.query_one("#dev-name", Static).update(info.product)
+            self.query_one("#dev-status", Static).update(status_s)
+            self.query_one("#dev-rate", Static).update(span_s)
+            self.query_one("#dev-peak", Static).update(peak_s)
+
+            # Update Zoom/Scale labels
+            self.query_one("#sz-val", Static).update(f"{self._spectrum_zoom:.1f}x")
+            self.query_one("#wz-val", Static).update(f"{self._waterfall_zoom:.1f}x")
+            spec = self.query_one("#spectrum", SpectrumWidget)
+            sc_val = (
+                "AUTO" if spec.auto_scale_enabled else f"{spec.manual_range:.0f} dB"
+            )
+            self.query_one("#sc-val", Static).update(sc_val)
         except Exception:
             pass
 
@@ -318,31 +361,168 @@ class MonitorScreen(Screen):
         except Exception:
             pass
 
-    def on_spectrum_zoom(self, message: SpectrumZoom) -> None:
-        if message.direction == "in":
-            self.action_zoom_in()
+    def on_zoom_message(self, message: ZoomMessage) -> None:
+        if message.target == "spectrum":
+            if message.direction == "in":
+                self._spectrum_zoom = min(32.0, self._spectrum_zoom * 2.0)
+            else:
+                self._spectrum_zoom = max(1.0, self._spectrum_zoom / 2.0)
+            spec = self.query_one("#spectrum", SpectrumWidget)
+            spec.zoom = self._spectrum_zoom  # type: ignore[attr-defined]
         else:
-            self.action_zoom_out()
+            if message.direction == "in":
+                self._waterfall_zoom = min(32.0, self._waterfall_zoom * 2.0)
+            else:
+                self._waterfall_zoom = max(1.0, self._waterfall_zoom / 2.0)
+            wf = self.query_one("#waterfall", WaterfallWidget)
+            wf.zoom = self._waterfall_zoom  # type: ignore[attr-defined]
+        self._update_device_info()
+
+    def on_gain_changed(self, message: Any) -> None:
+        if not self.controller or self.device.info.driver == "replay":
+            return
+        try:
+            self.device.set_gain(message.gain)
+            self.controller.config = StreamConfig(
+                frequency=self.controller.config.frequency,
+                sample_rate=self.controller.config.sample_rate,
+                gain=message.gain,
+            )
+            self.query_one(SDRmonHeader).gain = message.gain
+            self._update_device_info()
+            self.query_one(EventLog).log(f"Gain → {message.gain:.1f} dB", "info")
+        except Exception as e:
+            self.query_one(EventLog).log(f"Gain error: {e}", "error")
+
+    def on_rate_changed(self, message: Any) -> None:
+        if not self.controller or self.device.info.driver == "replay":
+            return
+        try:
+            self.device.set_sample_rate(message.rate)
+            self.controller.config = StreamConfig(
+                frequency=self.controller.config.frequency,
+                sample_rate=message.rate,
+                gain=self.controller.config.gain,
+            )
+            self.query_one(SDRmonHeader).sample_rate = message.rate
+            self._update_device_info()
+            self.query_one(EventLog).log(f"Rate → {fmt_rate(message.rate)}", "info")
+        except Exception as e:
+            self.query_one(EventLog).log(f"Rate error: {e}", "error")
 
     def on_spectrum_click(self, message: SpectrumClick) -> None:
         if not self.controller or self.device.info.driver == "replay":
             return
         try:
             hz = message.freq_hz
-            self.device.set_frequency(hz)
-            self.controller.config = StreamConfig(
-                frequency=hz,
-                sample_rate=self.controller.config.sample_rate,
-                gain=self.controller.config.gain,
-            )
-            self.query_one(SDRmonHeader).frequency = hz
-            self.query_one(EventLog).log(f"Tuned → {fmt_freq(hz)}", "success")
+
+            # ChannelManager only has 1 channel for now, we will update its frequency
+            mgr = self.controller.channel_manager
+
+            if not mgr.channels:
+                # Add default channel if missing
+                from sdrmon.dsp.channel import Channel
+
+                ch = Channel(
+                    "NFM",
+                    hz,
+                    self.controller.config.sample_rate,
+                    self.controller.audio_rate,
+                )
+                mgr.add_channel(ch)
+            else:
+                mgr.channels[0].frequency = hz
+                mgr.channels[0].set_sdr_center(mgr.sdr_center)
+
+            # Check if channel is within usable bandwidth
+            current_sdr_center = self.controller.config.frequency
+            sdr_rate = self.controller.config.sample_rate
+            usable_bw = sdr_rate * 0.9  # 90% usable
+
+            if abs(hz - current_sdr_center) > usable_bw / 2:
+                # Out of bounds, retune SDR
+                self.device.set_frequency(hz)
+                self.controller.config = StreamConfig(
+                    frequency=hz,
+                    sample_rate=sdr_rate,
+                    gain=self.controller.config.gain,
+                )
+                self.query_one(SDRmonHeader).frequency = hz
+                self.query_one(EventLog).log(f"HW Tuned → {fmt_freq(hz)}", "success")
+                mgr.set_sdr_center(hz)
+            else:
+                # In bounds, NCO handles it
+                self.query_one(EventLog).log(f"DSP Tuned → {fmt_freq(hz)}", "info")
+
+            self.query_one("#ctrl-freq").frequency = hz  # type: ignore[attr-defined]
             self._update_device_info()
         except Exception as e:
             self.query_one(EventLog).log(f"Tune error: {e}", "error")
 
+    def on_audio_settings_changed(self, message: AudioSettingsChanged) -> None:
+        if not self.controller:
+            return
+        mgr = self.controller.channel_manager
+        if not mgr.channels:
+            from sdrmon.dsp.channel import Channel
+
+            ch = Channel(
+                "NFM",
+                self.controller.config.frequency,
+                self.controller.config.sample_rate,
+                self.controller.audio_rate,
+            )
+            mgr.add_channel(ch)
+
+        ch = mgr.channels[0]
+        try:
+            if message.mode is not None:
+                ch.mode = message.mode.upper()
+                # recreate demod
+                from sdrmon.dsp.demod import create_demodulator
+
+                ch.demod = create_demodulator(ch.mode, ch.sdr_rate, ch.audio_rate)
+            if message.squelch is not None:
+                ch.squelch = message.squelch
+            if message.volume is not None:
+                ch.volume = message.volume
+            if message.muted is not None:
+                ch.muted = message.muted
+            if message.device is not None:
+                # Open new audio device
+                self.controller.audio_out.close()
+                if message.device.lower() == "null":
+                    from sdrmon.audio.output import NullAudioOutput
+
+                    self.controller.audio_out = NullAudioOutput()
+                else:
+                    try:
+                        from sdrmon.audio.output import SoundDeviceAudioOutput
+
+                        self.controller.audio_out = SoundDeviceAudioOutput()
+                        dev_name = (
+                            message.device
+                            if message.device.lower() != "default"
+                            else None
+                        )
+                        self.controller.audio_out.open(
+                            dev_name, self.controller.audio_rate
+                        )
+                    except Exception as e:
+                        self.query_one(EventLog).log(f"Audio open err: {e}", "error")
+                self.controller.audio_out.start()
+        except Exception as e:
+            self.query_one(EventLog).log(f"Audio DSP err: {e}", "error")
+
     def on_stream_error_msg(self, message: Any) -> None:
         log = self.query_one(EventLog)
+        if getattr(message, "is_audio", False):
+            log.log(f"AUDIO ERROR: {message.error}", "error")
+            self.app.notify(
+                f"AUDIO ERROR: {message.error}", severity="error", timeout=5.0
+            )
+            return
+
         log.log(f"Hardware disconnect / stream error: {message.error}", "error")
         self.app.notify(f"SDR Error: {message.error}", severity="error", timeout=10.0)
 
@@ -394,19 +574,25 @@ class MonitorScreen(Screen):
         self.query_one(EventLog).log(f"View: {_VIEW_LABELS[self._view_mode]}", "info")
 
     def action_zoom_in(self) -> None:
-        self._zoom = min(8.0, self._zoom * 2.0)
         spec = self.query_one("#spectrum", SpectrumWidget)
-        spec.zoom = self._zoom  # type: ignore[attr-defined]
         wf = self.query_one("#waterfall", WaterfallWidget)
-        wf.zoom = self._zoom  # type: ignore[attr-defined]
+        if wf.has_focus:
+            self._waterfall_zoom = min(32.0, self._waterfall_zoom * 2.0)
+            wf.zoom = self._waterfall_zoom  # type: ignore[attr-defined]
+        else:
+            self._spectrum_zoom = min(32.0, self._spectrum_zoom * 2.0)
+            spec.zoom = self._spectrum_zoom  # type: ignore[attr-defined]
         self._update_device_info()
 
     def action_zoom_out(self) -> None:
-        self._zoom = max(0.125, self._zoom / 2.0)
         spec = self.query_one("#spectrum", SpectrumWidget)
-        spec.zoom = self._zoom  # type: ignore[attr-defined]
         wf = self.query_one("#waterfall", WaterfallWidget)
-        wf.zoom = self._zoom  # type: ignore[attr-defined]
+        if wf.has_focus:
+            self._waterfall_zoom = max(1.0, self._waterfall_zoom / 2.0)
+            wf.zoom = self._waterfall_zoom  # type: ignore[attr-defined]
+        else:
+            self._spectrum_zoom = max(1.0, self._spectrum_zoom / 2.0)
+            spec.zoom = self._spectrum_zoom  # type: ignore[attr-defined]
         self._update_device_info()
 
     def action_scale_up(self) -> None:
@@ -441,80 +627,22 @@ class MonitorScreen(Screen):
         self._update_device_info()
 
     def action_freq(self) -> None:
-        readonly = self.device.info.driver == "replay"
-        freq = self.controller.config.frequency if self.controller else 100_000_000
-
-        def on_result(hz: int | None) -> None:
-            if hz is None or not self.controller:
-                return
-            try:
-                self.device.set_frequency(hz)
-                self.controller.config = StreamConfig(
-                    frequency=hz,
-                    sample_rate=self.controller.config.sample_rate,
-                    gain=self.controller.config.gain,
-                )
-                self.query_one(SDRmonHeader).frequency = hz
-                self.query_one(EventLog).log(f"Frequency → {fmt_freq(hz)}", "success")
-                self._update_device_info()
-            except Exception as e:
-                self.query_one(EventLog).log(f"Freq error: {e}", "error")
-
-        self.app.push_screen(FrequencyModal(freq, readonly=readonly), on_result)
+        try:
+            self.query_one("#freq-input").focus()
+        except Exception:
+            pass
 
     def action_gain(self) -> None:
-        caps = self.device.capabilities
-        readonly = self.device.info.driver == "replay"
         try:
-            current = self.device.get_gain()  # type: ignore[assignment]
+            self.query_one("#gain-slider").focus()
         except Exception:
-            current = 0.0
-
-        def on_result(value: float | str | None) -> None:
-            if value is None or not self.controller:
-                return
-            try:
-                self.device.set_gain(value)  # type: ignore[arg-type]
-                self.query_one(SDRmonHeader).gain = value  # type: ignore[assignment]
-                self.query_one(EventLog).log(
-                    f"Gain → {'AUTO' if value == 'auto' else f'{value} dB'}",
-                    "success",
-                )
-            except Exception as e:
-                self.query_one(EventLog).log(f"Gain error: {e}", "error")
-
-        self.app.push_screen(
-            GainModal(
-                current=current,  # type: ignore[arg-type]
-                gain_values=caps.gain_values,
-                supported=caps.gain,
-                readonly=readonly,
-            ),
-            on_result,
-        )
+            pass
 
     def action_rate(self) -> None:
-        caps = self.device.capabilities
-        readonly = self.device.info.driver == "replay"
-        current = self.controller.config.sample_rate if self.controller else 2_000_000
-
-        def on_result(rate: int | None) -> None:
-            if rate is None or not self.controller:
-                return
-            try:
-                self.controller.set_sample_rate(rate)
-                self.query_one(SDRmonHeader).sample_rate = rate
-                self.query_one(EventLog).log(
-                    f"Sample Rate → {fmt_rate(rate)}", "success"
-                )
-                self._update_device_info()
-            except Exception as e:
-                self.query_one(EventLog).log(f"Rate error: {e}", "error")
-
-        self.app.push_screen(
-            SampleRateModal(current, sample_rates=caps.sample_rates, readonly=readonly),
-            on_result,
-        )
+        try:
+            self.query_one("#rate-select").focus()
+        except Exception:
+            pass
 
     def action_help(self) -> None:
         self.app.push_screen(HelpModal())

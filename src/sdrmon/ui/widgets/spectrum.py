@@ -27,9 +27,10 @@ class SpectrumClick(Message):
         self.freq_hz = freq_hz
 
 
-class SpectrumZoom(Message):
-    def __init__(self, direction: str) -> None:
+class ZoomMessage(Message):
+    def __init__(self, target: str, direction: str) -> None:
         super().__init__()
+        self.target = target
         self.direction = direction
 
 
@@ -40,12 +41,21 @@ class SpectrumWidget(Widget):
     max_power: reactive[float] = reactive(0.0)
     zoom: reactive[float] = reactive(1.0)
 
+    can_focus = True
+
     DEFAULT_CSS = """
     SpectrumWidget {
         width: 100%;
         height: 100%;
         background: $surface;
         color: $text;
+        border: solid #1e3a5c;
+        border-title-color: #00b0ff;
+        border-title-style: bold;
+    }
+    SpectrumWidget:focus {
+        border: double #00e676;
+        border-title-color: #00e676;
     }
     """
 
@@ -222,6 +232,7 @@ class SpectrumWidget(Widget):
 
         if not isinstance(event, Click):
             return
+        self.focus()
         if self.result is None:
             return
         chart_width = max(1, self.size.width - 8)
@@ -240,8 +251,10 @@ class SpectrumWidget(Widget):
 
     def on_mouse_scroll_up(self, event) -> None:
         """Zoom in on scroll up."""
-        self.post_message(SpectrumZoom("in"))
+        self.focus()
+        self.post_message(ZoomMessage("spectrum", "in"))
 
     def on_mouse_scroll_down(self, event) -> None:
         """Zoom out on scroll down."""
-        self.post_message(SpectrumZoom("out"))
+        self.focus()
+        self.post_message(ZoomMessage("spectrum", "out"))

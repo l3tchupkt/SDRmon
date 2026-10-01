@@ -26,11 +26,20 @@ class WaterfallWidget(Widget):
     max_power: reactive[float] = reactive(0.0)
     zoom: reactive[float] = reactive(1.0)
 
+    can_focus = True
+
     DEFAULT_CSS = """
     WaterfallWidget {
         width: 100%;
         height: 100%;
         background: $surface;
+        border: solid #1e3a5c;
+        border-title-color: #00b0ff;
+        border-title-style: bold;
+    }
+    WaterfallWidget:focus {
+        border: double #00e676;
+        border-title-color: #00e676;
     }
     """
 
@@ -179,10 +188,12 @@ class WaterfallWidget(Widget):
     def on_click(self, event) -> None:
         """Handle mouse click to tune frequency."""
         from textual.events import Click
+
         from .spectrum import SpectrumClick
 
         if not isinstance(event, Click):
             return
+        self.focus()
         if self._last_result is None:
             return
         width = self.size.width
@@ -199,11 +210,13 @@ class WaterfallWidget(Widget):
             self.post_message(SpectrumClick(int(freq)))
 
     def on_mouse_scroll_up(self, event) -> None:
-        from .spectrum import SpectrumZoom
+        from .spectrum import ZoomMessage
 
-        self.post_message(SpectrumZoom("in"))
+        self.focus()
+        self.post_message(ZoomMessage("waterfall", "in"))
 
     def on_mouse_scroll_down(self, event) -> None:
-        from .spectrum import SpectrumZoom
+        from .spectrum import ZoomMessage
 
-        self.post_message(SpectrumZoom("out"))
+        self.focus()
+        self.post_message(ZoomMessage("waterfall", "out"))

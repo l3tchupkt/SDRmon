@@ -1,7 +1,8 @@
 import pytest
 from textual.geometry import Offset
-from sdrmon.ui.app import SDRmonApp
+
 from sdrmon.native.manager import NativeSDRManager
+from sdrmon.ui.app import SDRmonApp
 from sdrmon.ui.components import AppMode
 
 
@@ -26,24 +27,26 @@ async def test_ui_lifecycle_and_interaction():
         await pilot.pause(0.1)
         assert not app.screen.controller.is_paused()
 
-        # Open Frequency Modal
+        # Focus Frequency Control
         await pilot.press("f")
         await pilot.pause(0.1)
-        # Should push FrequencyModal
-        assert "FrequencyModal" in str(app.screen)
-
-        # Close Frequency Modal
-        await pilot.press("escape")
-        await pilot.pause(0.1)
+        # Should focus freq input
+        assert app.screen.query_one("#freq-input").has_focus
 
         # Zoom in/out via keyboard
+        from sdrmon.ui.widgets.spectrum import SpectrumWidget
+
+        # Click spectrum to blur input
+        await pilot.click(SpectrumWidget)
+        await pilot.pause(0.1)
+
         await pilot.press("+")
         await pilot.pause(0.1)
-        assert app.screen._zoom == 2.0
+        assert app.screen._spectrum_zoom == 2.0
 
         await pilot.press("-")
         await pilot.pause(0.1)
-        assert app.screen._zoom == 1.0
+        assert app.screen._spectrum_zoom == 1.0
 
         # Test mouse interaction (Spectrum tuning)
         from sdrmon.ui.widgets.spectrum import SpectrumWidget
@@ -55,7 +58,6 @@ async def test_ui_lifecycle_and_interaction():
         await pilot.pause(0.1)
 
         # Test mouse interaction (Spectrum zoom)
-        from textual.events import MouseScrollUp
 
         await pilot.pause(0.1)
         # Zoom should be triggered via scroll
