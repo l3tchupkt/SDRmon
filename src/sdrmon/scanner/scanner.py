@@ -49,8 +49,6 @@ class Scanner:
         self._running = True
         self._cancel_event.clear()
 
-
-
         analyzer = SpectrumAnalyzer(fft_size=config.fft_size, window="hann")
         stream_config = StreamConfig(
             frequency=config.start_frequency,
