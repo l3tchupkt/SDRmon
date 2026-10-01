@@ -100,8 +100,12 @@ class ScannerWidget(Widget):
         self.scanned_count = 0
         self.progress = 0.0
 
-        self.query_one("#lbl-start", Label).update(f"{config.start_frequency / 1e6:.3f} MHz")
-        self.query_one("#lbl-stop", Label).update(f"{config.stop_frequency / 1e6:.3f} MHz")
+        self.query_one("#lbl-start", Label).update(
+            f"{config.start_frequency / 1e6:.3f} MHz"
+        )
+        self.query_one("#lbl-stop", Label).update(
+            f"{config.stop_frequency / 1e6:.3f} MHz"
+        )
         self.query_one("#lbl-step", Label).update(f"{config.step / 1e3:.0f} kHz")
         self.query_one("#lbl-dwell", Label).update(f"{config.dwell_time * 1000:.0f} ms")
 

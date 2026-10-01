@@ -281,8 +281,9 @@ async def test_monitor_device_select_back():
         await pilot.pause(0.2)
         await pilot.press("d")
         await pilot.pause(0.3)
-        # Should be back at startup
-        assert isinstance(app.screen, StartupScreen)
+        # Should be showing DeviceModal now instead of StartupScreen
+        from sdrmon.ui.screens.device_modal import DeviceModal
+        assert isinstance(app.screen, DeviceModal)
 
     # Don't close dev since monitor cleaned it up
 

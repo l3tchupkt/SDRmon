@@ -9,6 +9,15 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, Input, Label
 
 from sdrmon.ui.components import SDRmonModal
+from textual.message import Message
+
+
+class CaptureErrorMsg(Message):
+    """Fired when an error occurs during capture."""
+
+    def __init__(self, error: Exception) -> None:
+        super().__init__()
+        self.error = error
 
 
 class CaptureScreen(SDRmonModal):

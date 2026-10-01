@@ -150,6 +150,7 @@ class MonitorScreen(Screen):
         yield hdr
 
         from textual.containers import Horizontal, Vertical
+
         with Vertical(id="monitor-main"):
             with Vertical(id="vis-container"):
                 yield SpectrumWidget(id="spectrum")
@@ -294,7 +295,8 @@ class MonitorScreen(Screen):
             hdr = self.query_one(SDRmonHeader)
             hdr.frequency = message.result.center_frequency
             hdr.sample_rate = message.result.sample_rate
-            self._update_device_info(peak=float(message.result.peak_power))
+            peak = message.result.peak_power
+            self._update_device_info(peak=float(peak) if peak is not None else None)
         except Exception:
             pass
 
@@ -477,17 +479,9 @@ class MonitorScreen(Screen):
                 self.controller.start()
 
         self.app.push_screen(ScannerScreen(self.device, scan_cfg), on_dismiss)
-    def action_zoom_in(self) -> None:
-        self._zoom = min(self._zoom * 2.0, 32.0)
-        self.query_one(SpectrumWidget).set_zoom(self._zoom)
-        self.query_one(EventLog).log(f"Zoom: {self._zoom:.1f}x", "info")
-        self._update_device_info()
 
-    def action_zoom_out(self) -> None:
-        self._zoom = max(self._zoom / 2.0, 1.0)
-        self.query_one(SpectrumWidget).set_zoom(self._zoom)
-        self.query_one(EventLog).log(f"Zoom: {self._zoom:.1f}x", "info")
-        self._update_device_info()
+
+
     def action_capture(self) -> None:
         if not self.controller:
             return
