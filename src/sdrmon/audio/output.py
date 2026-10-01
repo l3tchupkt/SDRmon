@@ -85,13 +85,13 @@ class SoundDeviceAudioOutput(AudioOutput):
             raise RuntimeError("sounddevice is required for SoundDeviceAudioOutput")
         self.stream = None
         self.sample_rate = 48000
-        
+
         self.underruns = 0
         self.overruns = 0
         self.generated_samples = 0
         self.played_samples = 0
         self.dropped_samples = 0
-        
+
         self.q = queue.Queue(maxsize=100)  # Buffer of audio chunks
         self.thread = None
         self._running = False
@@ -121,11 +121,13 @@ class SoundDeviceAudioOutput(AudioOutput):
                     except sd.PortAudioError as e:
                         if "underflow" in str(e).lower():
                             self.underruns += 1
-                        self.played_samples += len(samples) # Still advance
+                        self.played_samples += len(samples)  # Still advance
             except queue.Empty:
                 pass
             except Exception:
-                pass
+                import traceback
+
+                traceback.print_exc()
 
     def start(self):
         self._running = True
@@ -134,7 +136,7 @@ class SoundDeviceAudioOutput(AudioOutput):
         self.generated_samples = 0
         self.played_samples = 0
         self.dropped_samples = 0
-        
+
         if self.stream:
             self.stream.start()
 
@@ -145,6 +147,7 @@ class SoundDeviceAudioOutput(AudioOutput):
         if not self._running:
             return
 
+        samples = samples.astype(np.float32)
         self.generated_samples += len(samples)
         try:
             # If queue is full, we drop the oldest to avoid blocking DSP (and by extension IQ stream)
@@ -175,10 +178,10 @@ class SoundDeviceAudioOutput(AudioOutput):
 
     def get_stats(self) -> dict[str, float]:
         return {
-            "underruns": self.underruns, 
+            "underruns": self.underruns,
             "overruns": self.overruns,
             "generated": self.generated_samples,
             "played": self.played_samples,
             "dropped": self.dropped_samples,
-            "queue_depth": self.q.qsize()
+            "queue_depth": self.q.qsize(),
         }

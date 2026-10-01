@@ -62,7 +62,9 @@ class FrequencyControl(Widget):
         self.border_title = "FREQUENCY"
         with Horizontal(classes="freq-slider-row"):
             yield Static("24.000 MHz", id="freq-label-min")
-            yield Slider(min_value=24.0, max_value=1766.0, value=100.0, id="freq-slider")
+            yield Slider(
+                min_value=24.0, max_value=1766.0, value=100.0, id="freq-slider"
+            )
             yield Static("1766.000 MHz", id="freq-label-max")
         with Horizontal(classes="freq-row"):
             yield Button("−", id="freq-dec", classes="freq-btn")
@@ -170,15 +172,15 @@ class RateControl(Widget):
     """
 
     rate = reactive(2000000)
-    
+
     def set_supported_rates(self, rates: list[int]) -> None:
         opts = []
         for r in rates:
             opts.append((f"{r / 1e6:.3f} MS/s", r))
-        
+
         sel = self.query_one("#rate-select", Select)
         sel.set_options(opts)
-        
+
     def watch_rate(self, value: int) -> None:
         try:
             sel = self.query_one("#rate-select", Select)

@@ -49,7 +49,7 @@ def _build_entries(devices: list[DeviceInfo]) -> list[DeviceEntry]:
     # Sort: hardware first (driver != fake), fake second
     hw_devices = [d for d in devices if d.driver != "fake"]
     fake_devices = [d for d in devices if d.driver == "fake"]
-    
+
     entries: list[DeviceEntry] = []
     for d in hw_devices:
         entries.append(

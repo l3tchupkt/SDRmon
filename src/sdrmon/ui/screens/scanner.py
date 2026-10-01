@@ -119,32 +119,33 @@ class ScannerScreen(Screen):
     def action_start_scan(self) -> None:
         if self._scanning:
             return
-            
+
         from textual.widgets import Input
+
         try:
             start_mhz = float(self.query_one("#inp-start", Input).value)
             stop_mhz = float(self.query_one("#inp-stop", Input).value)
             step_khz = float(self.query_one("#inp-step", Input).value)
             dwell_ms = float(self.query_one("#inp-dwell", Input).value)
-            
+
             self.config = ScanConfig(
                 start_frequency=int(start_mhz * 1e6),
                 stop_frequency=int(stop_mhz * 1e6),
                 step=int(step_khz * 1e3),
                 dwell_time=dwell_ms / 1000.0,
-                sample_rate=self.device.info.sample_rate if hasattr(self.device.info, 'sample_rate') else 2000000,
+                sample_rate=self.device.get_sample_rate(),
             )
         except ValueError:
             self.query_one(EventLog).log("Invalid scan configuration", "error")
             return
-            
+
         self._scanning = True
         widget = self.query_one(ScannerWidget)
-        
+
         span = self.config.stop_frequency - self.config.start_frequency
         steps = max(1, int(span // self.config.step) + 1)
         widget.update_config(self.config, steps)
-        
+
         widget.clear_results()
         self._scan_worker()
         self.query_one(EventLog).log("Scan started", "success")

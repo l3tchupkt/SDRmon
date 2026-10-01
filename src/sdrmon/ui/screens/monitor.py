@@ -248,25 +248,29 @@ class MonitorScreen(Screen):
 
         # Init Controls
         try:
-            from sdrmon.ui.widgets.controls import FrequencyControl, GainControl, RateControl
+            from sdrmon.ui.widgets.controls import (
+                FrequencyControl,
+                GainControl,
+                RateControl,
+            )
 
             freq_ctrl = self.query_one("#ctrl-freq", FrequencyControl)
             freq_ctrl.frequency = freq
-            
+
             cap = self.device.capabilities
             if cap.frequency_min:
                 freq_ctrl.min_freq = cap.frequency_min
             if cap.frequency_max:
                 freq_ctrl.max_freq = cap.frequency_max
-                
+
             if isinstance(gain, (int, float)):
                 self.query_one("#ctrl-gain", GainControl).gain = gain
-            
+
             if cap.sample_rates:
                 rate_ctrl = self.query_one("#ctrl-rate", RateControl)
                 rate_ctrl.set_supported_rates(cap.sample_rates)
                 rate_ctrl.rate = rate
-                
+
         except Exception:
             pass
 
@@ -287,7 +291,7 @@ class MonitorScreen(Screen):
             return
         cfg = self.controller.config
         info = self.device.info
-        
+
         ch_freq = cfg.frequency
         mgr = self.controller.channel_manager
         if mgr and mgr.channels:
@@ -311,7 +315,7 @@ class MonitorScreen(Screen):
             self.query_one("#dev-channel", Static).update(freq_ch_s)
             self.query_one("#dev-rate", Static).update(span_s)
             self.query_one("#dev-peak", Static).update(peak_s)
-            
+
             # Update Header with Channel frequency
             hdr = self.query_one(SDRmonHeader)
             hdr.frequency = ch_freq
@@ -410,8 +414,9 @@ class MonitorScreen(Screen):
         try:
             self.device.set_gain(message.gain)
             actual_gain = self.device.get_gain()
-            
+
             from sdrmon.ui.widgets.controls import GainControl
+
             self.query_one("#ctrl-gain", GainControl).gain = float(actual_gain)
 
             self.controller.config = StreamConfig(
@@ -431,8 +436,9 @@ class MonitorScreen(Screen):
         try:
             self.device.set_sample_rate(message.rate)
             actual_rate = self.device.get_sample_rate()
-            
+
             from sdrmon.ui.widgets.controls import RateControl
+
             self.query_one("#ctrl-rate", RateControl).rate = actual_rate
 
             self.controller.config = StreamConfig(

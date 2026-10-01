@@ -72,6 +72,7 @@ class ScannerWidget(Widget):
 
     def compose(self) -> ComposeResult:
         from textual.widgets import Input
+
         with Vertical(id="scanner-config"):
             with Horizontal():
                 with Vertical(classes="cfg-col"):
@@ -107,7 +108,10 @@ class ScannerWidget(Widget):
         self.progress = 0.0
 
         from textual.widgets import Input
-        self.query_one("#inp-start", Input).value = f"{config.start_frequency / 1e6:.3f}"
+
+        self.query_one(
+            "#inp-start", Input
+        ).value = f"{config.start_frequency / 1e6:.3f}"
         self.query_one("#inp-stop", Input).value = f"{config.stop_frequency / 1e6:.3f}"
         self.query_one("#inp-step", Input).value = f"{config.step / 1e3:.0f}"
         self.query_one("#inp-dwell", Input).value = f"{config.dwell_time * 1000:.0f}"
