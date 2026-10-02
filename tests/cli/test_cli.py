@@ -23,8 +23,8 @@ def test_cli_info():
     run_info(args)
 
 
-def test_cli_platform():
-    from sdrmon.cli.platform import run as run_platform
+def test_cli_doctor():
+    from sdrmon.cli.doctor import run as run_doctor
 
     args = argparse.Namespace()
-    run_platform(args)
+    run_doctor(args)

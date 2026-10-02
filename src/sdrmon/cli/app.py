@@ -51,13 +51,13 @@ def main() -> None:
 
     _capture_mod.setup_parser(capture_parser)
 
-    # Platform command
-    platform_parser = subparsers.add_parser(
-        "platform", help="Show environment diagnostics"
+    # Doctor command
+    doctor_parser = subparsers.add_parser(
+        "doctor", help="Show environment diagnostics"
     )
-    from sdrmon.cli import platform as _platform_mod
+    from sdrmon.cli import doctor as _doctor_mod
 
-    _platform_mod.setup_parser(platform_parser)
+    _doctor_mod.setup_parser(doctor_parser)
 
     # Scan command
     scan_parser = subparsers.add_parser("scan", help="Scan a frequency range")
@@ -96,8 +96,8 @@ def main() -> None:
         _capture_mod.run(args)
     elif cmd == "scan":
         _scan_mod.run(args)
-    elif cmd == "platform":
-        _platform_mod.run(args)
+    elif cmd == "doctor":
+        _doctor_mod.run(args)
     elif cmd == "replay":
         _replay_mod.run(args)
     else:

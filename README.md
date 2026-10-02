@@ -1,80 +1,101 @@
 # SDRmon
 
-A terminal-first SDR monitoring and analysis toolkit for Python.
+A terminal-first SDR monitoring and analysis toolkit for Python. SDRmon provides a full-featured Textual-based UI for exploring RF spectrum directly from your terminal.
 
-Connect an SDR.
-Tune a frequency.
-Watch the spectrum.
-Scan bands.
-Capture IQ.
-Replay it later.
-
-Everything from the terminal.
+## Features
+- **Native SDR Backends**: Connect directly to RTL-SDR without needing Python `ctypes` overhead. (Only RTL-SDR is supported natively so far)
+- **Real-Time DSP**: Built-in channel manager for FM demodulation and resampling.
+- **Spectrum & Waterfall Displays**: Fast terminal graphics rendering.
+- **Audio Output**: Demodulate and listen to signals via PortAudio.
+- **Scanner**: Automatically scan a frequency range and halt on active signals.
+- **Capture & Replay**: Record full IQ bandwidth to disk and replay later precisely as received.
+- **Cross-Platform**: Works on Windows, macOS, and Linux terminals.
 
 ## Installation
 
+You can install SDRmon directly using `uv` (recommended) or `pip`:
+
 ```bash
-pip install sdrmon
+uv tool install sdrmon
 ```
+
+To include optional dependencies for TUI, DSP, and Audio:
+
+```bash
+uv tool install sdrmon[all]
+```
+
+### RTL-SDR Setup (Windows)
+SDRmon uses a native C++ extension to talk to RTL-SDR hardware. You need the standard RTL-SDR DLL installed correctly:
+1. Download the latest `rtlsdr.dll` and `libusb-1.0.dll` from the RTL-SDR official releases.
+2. Place them in your system PATH or in the same directory you run SDRmon.
+3. Make sure to use **Zadig** to replace the default USB driver with **WinUSB**. 
 
 ## Quick Start
 
-```bash
-sdrmon monitor
-```
-
-## Terminal UI
-
-SDRmon provides a professional Spectrum Analyzer right in your terminal. You can test it without hardware using the built-in FakeSDR:
+Launch the interactive GUI:
 
 ```bash
-sdrmon monitor --fake
+sdrmon
 ```
 
-## RF Scanner
+This will open the startup screen where you can select an available SDR device, use a FakeSDR for testing, or replay a capture.
 
-SDRmon includes a built-in RF scanner capable of sweeping frequency ranges, measuring peaks, and identifying occupied spectrum. 
+Check device and environment health:
 
 ```bash
-# Sweep a frequency range and identify active signals
-sdrmon scan --fake --start 100M --stop 110M --step 250k --dwell 0.1
+sdrmon doctor
 ```
 
-## Platform Support
+List available SDR devices:
 
-SDRmon's core SDK is designed to run on Windows, Linux, and macOS.
+```bash
+sdrmon devices
+```
 
-The software-only development workflow requires no SDR hardware:
+Capture 5 seconds of raw IQ data (10M samples at 2MS/s):
 
-FakeSDR → DSP → Capture → Replay
+```bash
+sdrmon capture --out signal.iq --samples 10000000
+```
 
-Physical SDR support depends on the operating system and vendor/device backend (e.g., RTL-SDR, HackRF, PlutoSDR). You can run `sdrmon platform` to check your environment and available backends.
+Replay a capture:
 
-## Python SDK & Software-Only Workflow
+```bash
+sdrmon replay signal.iq
+```
 
-SDRmon is not just a terminal application; it is a powerful Python SDR SDK. You can develop and test SDRmon without owning an physical SDR. The `FakeSDR` device procedurally generates RF signals, and `IQReplay` can loop over saved captures.
+## GUI Controls
+Once inside the monitor screen:
+- **Frequency/Gain/Rate**: Use the sidebar to tune frequency, change gain, and set sample rate.
+- **Demodulation**: The Audio control panel allows setting Mode (WFM/NFM/AM), Squelch, and Volume.
+- **Zoom/Scale**: Adjust FFT zooming and DB scaling interactively.
+- **Actions**:
+  - `SCAN`: Enter Scanner mode.
+  - `CAPTURE`: Open the capture dialogue.
+  - `REPLAY`: Browse available `.iq` files for replay.
+  - `QUIT`: Exit SDRmon.
+
+## Python SDK
+You can use the SDRmon components directly in your own scripts. See the `examples/` directory for demonstrations of device usage, spectrum analysis, channel DSP, and PortAudio playback.
 
 ```python
-from sdrmon.backends.generic.fake import FakeSDRDevice
+from sdrmon.backends import initialize_backends
+from sdrmon.native.manager import NativeSDRManager
 from sdrmon.core.settings import StreamConfig
-from sdrmon.core.device import DeviceInfo
-from sdrmon import SpectrumAnalyzer
 
-device = FakeSDRDevice(DeviceInfo(driver="fake", product="Fake"), seed=42)
-device.open()
+initialize_backends()
+mgr = NativeSDRManager()
+dev = mgr.open("rtlsdr:0")
 
-# Stream 2Msps at 100MHz
-config = StreamConfig(frequency=100_000_000, sample_rate=2_000_000)
-
-with device.stream(config) as stream:
-    block = stream.read()
-    
-    analyzer = SpectrumAnalyzer(fft_size=2048)
-    result = analyzer.process(block)
-
-    print(f"Peak detected at {result.peak_frequency} Hz")
+with dev.stream(StreamConfig(frequency=100_000_000, sample_rate=2_000_000)) as stream:
+    for block in stream:
+        print(f"Received {len(block.samples)} complex samples!")
 ```
 
-## Development
+## Status
+- **RTL-SDR physical validation**: NOT PERFORMED (hardware unavailable in CI environment)
+- **Synthetic/Replay validation**: PASS
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and architecture details.
+## License
+MIT

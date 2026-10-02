@@ -31,6 +31,9 @@ class SDRmonApp(App[Any]):
     def __init__(self, device: SDRDevice | None = None) -> None:
         super().__init__()
         self._initial_device = device
+        from sdrmon.core.config import SDRmonConfig
+        self.sdrmon_config = SDRmonConfig.load()
+        self.dark = self.sdrmon_config.dark_mode
 
     def on_mount(self) -> None:
         if self._initial_device is not None:
@@ -75,6 +78,14 @@ class SDRmonApp(App[Any]):
                 self.switch_to_monitor(device)
 
         self.push_screen(ReplayModal(), on_result)
+
+    def action_quit(self) -> None:
+        """Save config on quit."""
+        try:
+            self.sdrmon_config.save()
+        except Exception:
+            pass
+        super().action_quit()
 
 
 def start_tui(device: SDRDevice | None = None) -> None:

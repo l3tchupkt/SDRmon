@@ -157,15 +157,6 @@ wheels = [
 ]
 
 [[package]]
-name = "libhackrf"
-version = "0.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d4/7c/bf80b243696012ff0460305179b4800e1996c8d2b7d7b86cf96e804e2fe6/libhackrf-0.2.tar.gz", hash = "sha256:7d64944927a2223ef20a6ecddbb651d3464455bc2bb5f057a4098403a84657cf", size = 19643, upload-time = "2024-09-29T21:31:11.695Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7c/18/6631cfd2e99e52dac4349cde49a4bb902b7798df59924962dbfd38e189cb/libhackrf-0.2-py3-none-any.whl", hash = "sha256:61d8cb62a76c70aa979c4027ceba082c5c32984b1198fd157920416ceb492bcb", size = 19881, upload-time = "2024-09-29T21:31:10.646Z" },
-]
-
-[[package]]
 name = "linkify-it-py"
 version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -472,21 +463,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pyadi-iio"
-version = "0.0.21"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
-    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "pylibiio" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/15/af/061af42c2d016c974f67226b90f4ab92319fdeab12e345da72168da66e74/pyadi_iio-0.0.21.tar.gz", hash = "sha256:6714b52b1bb23e0200d3462fba09510b840837206d9ffc603f7249dc0cf4b992", size = 137248, upload-time = "2026-05-26T18:38:53.251Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/1c/bb/f3e30d6056cc0a0d2966c3add571a31a057d1e516b236280c3bb9639e45b/pyadi_iio-0.0.21-py3-none-any.whl", hash = "sha256:2c9582d112d8e63ab0937f47dd15f3be45a57d118299c2872ce435fda8091a09", size = 213324, upload-time = "2026-05-26T18:38:52.087Z" },
-]
-
-[[package]]
 name = "pycparser"
 version = "3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -505,15 +481,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pylibiio"
-version = "0.25"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/43/27/ac30c489e86bd297111b09242b19aa05e470dfef8725a233346e9d67c642/pylibiio-0.25.tar.gz", hash = "sha256:f2615ab20093ec8ca87417f1e38dfdca1baa21a719328f4b27d28c99b1d23eb5", size = 14143, upload-time = "2023-08-10T14:03:16.994Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/68/a1/34bea2ef5bc4561e3c16506ff09ef157625771e7cb567e88711075c0b9a4/pylibiio-0.25-py3-none-any.whl", hash = "sha256:e49a0b317c9d4df100f4a2540e5aa6201222c3bd5495b296237e6598466afad1", size = 11490, upload-time = "2023-08-10T14:03:15.927Z" },
-]
-
-[[package]]
 name = "pyright"
 version = "1.1.414"
 source = { registry = "https://pypi.org/simple" }
@@ -524,15 +491,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e1/1b/244c7b710031ada80f27e579ec20d28a2285dfc318fed0339866b1047f12/pyright-1.1.414.tar.gz", hash = "sha256:523c0a97c60da6333234955c277730c9cf4f5bd6d5399e7b7d2b0fc5d3599524", size = 4154638, upload-time = "2026-09-10T12:26:53.181Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d7/ba/18b6e682ead424ad24bcc134339ae5d1b931cd9ae260540592a058a91279/pyright-1.1.414-py3-none-any.whl", hash = "sha256:2a6b4b3298c9eec174c5ed83bd338de6eee82df2992f3e1930e6199d381be36f", size = 6225049, upload-time = "2026-09-10T12:26:51.427Z" },
-]
-
-[[package]]
-name = "pyrtlsdr"
-version = "0.5.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d9/bf/60c6c077f52c91ab7df051b456096cb158c190dc5ea452cb6a2c9824b06f/pyrtlsdr-0.5.0.tar.gz", hash = "sha256:23d11ebd1b680b3e6a2a926b73de4ffe872cb1ffed8701f257cd1c46d1a840ac", size = 37969, upload-time = "2026-07-05T19:23:50.648Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/06/de/c1b4b02fa26a2b1fd0559f817be9833de0c77ed213139670b425e827066f/pyrtlsdr-0.5.0-py3-none-any.whl", hash = "sha256:0122da6e930d3f0593914864cf580923e3132d90aeba1f73a651a571c227f5d8", size = 31649, upload-time = "2026-07-05T19:23:49.653Z" },
 ]
 
 [[package]]
@@ -824,9 +782,7 @@ dependencies = [
 
 [package.optional-dependencies]
 all = [
-    { name = "libhackrf" },
-    { name = "pyadi-iio" },
-    { name = "pyrtlsdr" },
+    { name = "platformdirs" },
     { name = "rich" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
@@ -835,54 +791,46 @@ all = [
     { name = "textual" },
 ]
 audio = [
-    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
-    { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "sounddevice" },
 ]
 dev = [
+    { name = "platformdirs" },
     { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
 ]
-hackrf = [
-    { name = "libhackrf" },
-]
-pluto = [
-    { name = "pyadi-iio" },
-]
-rtlsdr = [
-    { name = "pyrtlsdr" },
+dsp = [
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 tui = [
+    { name = "platformdirs" },
     { name = "rich" },
     { name = "textual" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "libhackrf", marker = "extra == 'all'", specifier = ">=0.1" },
-    { name = "libhackrf", marker = "extra == 'hackrf'", specifier = ">=0.1" },
     { name = "numpy", specifier = ">=1.24.0" },
-    { name = "pyadi-iio", marker = "extra == 'all'", specifier = ">=0.0.15" },
-    { name = "pyadi-iio", marker = "extra == 'pluto'", specifier = ">=0.0.15" },
+    { name = "platformdirs", marker = "extra == 'all'", specifier = ">=3.0.0" },
+    { name = "platformdirs", marker = "extra == 'dev'", specifier = ">=3.0.0" },
+    { name = "platformdirs", marker = "extra == 'tui'", specifier = ">=3.0.0" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1" },
-    { name = "pyrtlsdr", marker = "extra == 'all'", specifier = ">=0.3.0" },
-    { name = "pyrtlsdr", marker = "extra == 'rtlsdr'", specifier = ">=0.3.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
     { name = "rich", marker = "extra == 'all'", specifier = ">=13.0.0" },
     { name = "rich", marker = "extra == 'tui'", specifier = ">=13.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1" },
     { name = "scipy", marker = "extra == 'all'", specifier = ">=1.10.0" },
-    { name = "scipy", marker = "extra == 'audio'", specifier = ">=1.10.0" },
+    { name = "scipy", marker = "extra == 'dsp'", specifier = ">=1.10.0" },
     { name = "sounddevice", marker = "extra == 'all'", specifier = ">=0.4.6" },
     { name = "sounddevice", marker = "extra == 'audio'", specifier = ">=0.4.6" },
     { name = "textual", marker = "extra == 'all'", specifier = ">=0.50.0" },
     { name = "textual", marker = "extra == 'tui'", specifier = ">=0.50.0" },
 ]
-provides-extras = ["rtlsdr", "hackrf", "pluto", "tui", "audio", "all", "dev"]
+provides-extras = ["dsp", "audio", "tui", "rtlsdr", "hackrf", "pluto", "all", "dev"]
 
 [[package]]
 name = "sounddevice"

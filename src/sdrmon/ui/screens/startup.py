@@ -15,6 +15,7 @@ from sdrmon.ui.components import DEVICE_SHORTCUTS, AppMode, SDRmonFooter, SDRmon
 
 LOGO_ART = """\
 [#00b0ff]
+
 ╔═══════╗ ╔═══════╗ ╔═══════╗
 ║ ╔═════╝ ║ ╔═══╗ ║ ║ ╔═══╗ ║ ╔═════════╗ ╔═══════╗ ╔═══════╗
 ║ ╚═════╗ ║ ║   ║ ║ ║ ╚═══╝ ║ ║ ╔═╗ ╔═╗ ║ ║ ╔═══╗ ║ ║ ╔═══╗ ║
@@ -25,7 +26,6 @@ LOGO_ART = """\
 [/#00b0ff]"""
 
 # ── Device list item ─────────────────────────────────────────────────────────
-
 
 class DeviceEntry:
     """Wraps a DeviceInfo with display metadata."""
@@ -284,6 +284,12 @@ class StartupScreen(Screen):
         except Exception as e:
             self.notify(f"Failed to open device: {e}", severity="error")
             return
+            
+        try:
+            self.app.sdrmon_config.preferred_device = entry.info.bus # type: ignore
+        except Exception:
+            pass
+            
         self.app.switch_to_monitor(dev)  # type: ignore[attr-defined]
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:

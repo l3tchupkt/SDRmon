@@ -215,17 +215,19 @@ class MonitorScreen(Screen):
         self.query_one("#event-log", EventLog).border_title = "EVENTS"
 
         try:
-            freq = self.device.get_frequency() or 100_000_000
+            freq = self.device.get_frequency() or self.app.sdrmon_config.center_frequency
         except Exception:
-            freq = 100_000_000
+            freq = self.app.sdrmon_config.center_frequency
         try:
-            rate = self.device.get_sample_rate() or 2_000_000
+            rate = self.device.get_sample_rate() or self.app.sdrmon_config.sample_rate
         except Exception:
-            rate = 2_000_000
+            rate = self.app.sdrmon_config.sample_rate
         try:
             gain: float | str | None = self.device.get_gain()  # type: ignore[assignment]
+            if gain is None:
+                gain = self.app.sdrmon_config.gain
         except Exception:
-            gain = None
+            gain = self.app.sdrmon_config.gain
 
         config = StreamConfig(
             frequency=freq,
