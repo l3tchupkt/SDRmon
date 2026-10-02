@@ -93,9 +93,5 @@ with dev.stream(StreamConfig(frequency=100_000_000, sample_rate=2_000_000)) as s
         print(f"Received {len(block.samples)} complex samples!")
 ```
 
-## Status
-- **RTL-SDR physical validation**: NOT PERFORMED (hardware unavailable in CI environment)
-- **Synthetic/Replay validation**: PASS
-
 ## License
 MIT
