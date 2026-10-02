@@ -24,12 +24,34 @@ bool RtlSdrLoader::load() {
     if (loaded_) return true;
 
 #ifdef _WIN32
-    // On Windows, the DLL might be rtlsdr.dll or librtlsdr.dll
+    // Prioritize loading from the directory containing our own native extension DLL
+    char module_path[MAX_PATH];
+    HMODULE hm = NULL;
+    if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | 
+                           GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           (LPCSTR)&RtlSdrLoader::get, &hm)) {
+        GetModuleFileNameA(hm, module_path, sizeof(module_path));
+        std::string path = module_path;
+        size_t pos = path.find_last_of("\\/");
+        if (pos != std::string::npos) {
+            std::string dir = path.substr(0, pos);
+            if (load_from(dir + "\\rtlsdr.dll")) return true;
+            
+            // If we are running in the source tree, it might be in rtl-sdr-blog/x64 or x86
+#ifdef _WIN64
+            if (load_from(dir + "\\..\\..\\..\\rtl-sdr-blog\\x64\\rtlsdr.dll")) return true;
+#else
+            if (load_from(dir + "\\..\\..\\..\\rtl-sdr-blog\\x86\\rtlsdr.dll")) return true;
+#endif
+        }
+    }
+    
+    // Fallback: On Windows, the DLL might be rtlsdr.dll or librtlsdr.dll in system path
     if (load_from("rtlsdr.dll")) return true;
     if (load_from("librtlsdr.dll")) return true;
     
     // Also try the bin directory next to python executable or current dir
-    if (load_from("bin/rtlsdr.dll")) return true;
+    if (load_from("bin\\rtlsdr.dll")) return true;
 #else
     if (load_from("librtlsdr.so")) return true;
     if (load_from("librtlsdr.so.0")) return true;

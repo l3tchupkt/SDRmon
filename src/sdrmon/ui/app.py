@@ -32,6 +32,7 @@ class SDRmonApp(App[Any]):
         super().__init__()
         self._initial_device = device
         from sdrmon.core.config import SDRmonConfig
+
         self.sdrmon_config = SDRmonConfig.load()
         self.dark = self.sdrmon_config.dark_mode
 

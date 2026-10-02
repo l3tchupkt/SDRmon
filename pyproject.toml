@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "sdrmon"
-version = "0.1.0"
+version = "0.1.2"
 description = "A terminal-first SDR monitoring and analysis toolkit for Python."
 readme = "README.md"
 authors = [

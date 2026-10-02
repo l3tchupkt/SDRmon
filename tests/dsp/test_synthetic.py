@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from sdrmon.dsp.channel import Channel, ChannelManager
+from sdrmon.dsp.channel import ChannelManager
 
 
 def generate_carrier(rate, freq, duration=0.1):
@@ -47,10 +47,10 @@ def test_demod_1khz(mode):
     mgr = ChannelManager(sdr_rate, audio_rate)
     mgr.set_sdr_center(100_000_000)
 
-    ch = Channel(mode, 100_000_000, sdr_rate, audio_rate)
+    bw = 200000.0 if mode in ("FM", "WFM") else (10000.0 if mode == "AM" else 12500.0)
+    ch = mgr.create_channel(100_000_000, mode, bw)
     # Turn off squelch for testing
     ch.squelch = -200.0
-    mgr.add_channel(ch)
 
     if mode == "AM":
         iq = generate_am(sdr_rate, 0, 1000, duration=0.2)
@@ -80,9 +80,8 @@ def test_nco_offset():
     mgr.set_sdr_center(100_000_000)
 
     # Channel is at 100.1 MHz, which is a +100kHz offset
-    ch = Channel("NFM", 100_100_000, sdr_rate, audio_rate)
+    ch = mgr.create_channel(100_100_000, "NFM", 12500.0)
     ch.squelch = -200.0
-    mgr.add_channel(ch)
 
     # Generate FM at +100kHz
     iq = generate_fm(sdr_rate, 100_000, 1000, 2500, duration=0.2)

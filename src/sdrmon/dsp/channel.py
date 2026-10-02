@@ -5,12 +5,23 @@ from sdrmon.dsp.filters import LowPassFilter, NCOShift
 
 
 class Channel:
-    def __init__(self, mode: str, frequency: int, sdr_rate: int, audio_rate: int):
+    def __init__(
+        self,
+        channel_id: int,
+        mode: str,
+        frequency: int,
+        bandwidth: float,
+        sdr_rate: int,
+        audio_rate: int,
+    ):
+        self.channel_id = channel_id
         self.mode = mode.upper()
         self.frequency = frequency
+        self.bandwidth = bandwidth
         self.sdr_rate = sdr_rate
         self.audio_rate = audio_rate
         self.muted = False
+        self.enabled = True
         self.volume = 1.0
         self.squelch = -100.0  # dBFS
 
@@ -19,6 +30,8 @@ class Channel:
         self.demod = create_demodulator(mode, sdr_rate, audio_rate)
 
     def _get_bandwidth(self) -> float:
+        if self.bandwidth > 0:
+            return self.bandwidth
         if self.mode == "AM":
             return 10000.0
         elif self.mode == "NFM":
@@ -42,6 +55,11 @@ class Channel:
         else:
             pwr_db = -100.0
 
+        if pwr_db < self.squelch or self.muted or not self.enabled:
+            return np.zeros(
+                int(len(iq) * self.audio_rate / self.sdr_rate), dtype=np.float32
+            )
+
         # Shift to baseband
         shifted = self.nco.process(iq)
         # Filter channel
@@ -60,31 +78,57 @@ class ChannelManager:
         self.sdr_rate = sdr_rate
         self.audio_rate = audio_rate
         self.sdr_center = 100_000_000
-        self.channels: list[Channel] = []
+        self.channels: dict[int, Channel] = {}
+        self._next_id = 1
 
-    def add_channel(self, channel: Channel):
-        channel.set_sdr_center(self.sdr_center)
-        self.channels.append(channel)
+    def create_channel(
+        self, frequency: int, mode: str, bandwidth: float = 0.0
+    ) -> Channel:
+        ch = Channel(
+            self._next_id, mode, frequency, bandwidth, self.sdr_rate, self.audio_rate
+        )
+        self._next_id += 1
+        ch.set_sdr_center(self.sdr_center)
+        self.channels[ch.channel_id] = ch
+        return ch
+
+    def remove_channel(self, channel_id: int):
+        if channel_id in self.channels:
+            del self.channels[channel_id]
+
+    def get_channel(self, channel_id: int) -> Channel | None:
+        return self.channels.get(channel_id)
+
+    def list_channels(self) -> list[Channel]:
+        return list(self.channels.values())
+
+    def enable_channel(self, channel_id: int):
+        if ch := self.get_channel(channel_id):
+            ch.enabled = True
+
+    def disable_channel(self, channel_id: int):
+        if ch := self.get_channel(channel_id):
+            ch.enabled = False
 
     def clear(self):
         self.channels.clear()
 
     def set_sdr_center(self, center_hz: int):
         self.sdr_center = center_hz
-        for ch in self.channels:
+        for ch in self.channels.values():
             ch.set_sdr_center(center_hz)
 
     def set_sdr_rate(self, sdr_rate: int):
         self.sdr_rate = sdr_rate
         # Recreate channels to update filters
-        old_channels = self.channels
+        old_channels = list(self.channels.values())
         self.clear()
         for ch in old_channels:
-            new_ch = Channel(ch.mode, ch.frequency, self.sdr_rate, self.audio_rate)
+            new_ch = self.create_channel(ch.frequency, ch.mode, ch.bandwidth)
             new_ch.muted = ch.muted
+            new_ch.enabled = ch.enabled
             new_ch.volume = ch.volume
             new_ch.squelch = ch.squelch
-            self.add_channel(new_ch)
 
     def process(self, iq: np.ndarray) -> list[np.ndarray]:
-        return [ch.process(iq) for ch in self.channels]
+        return [ch.process(iq) for ch in self.channels.values()]

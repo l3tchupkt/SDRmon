@@ -1,10 +1,12 @@
 import json
 import os
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
+
 from platformdirs import user_config_dir
 
 CONFIG_DIR = user_config_dir("sdrmon", "sdrmon")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
+
 
 @dataclass
 class SDRmonConfig:

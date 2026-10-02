@@ -14,6 +14,9 @@ class NativeSDRManager:
     def __init__(self):
         self._native_manager = sdrmon_native.SDRManager()
 
+    def backends(self) -> List[str]:
+        return self._native_manager.backends()
+
     def discover(self) -> List[DeviceInfo]:
         native_devices = self._native_manager.discover()
         devices = []

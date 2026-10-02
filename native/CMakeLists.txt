@@ -19,6 +19,12 @@ add_library(sdrmon_core_obj OBJECT
     src/backends/rtl_sdr/rtl_sdr_loader.cpp
     src/backends/rtl_sdr/rtl_sdr_device.cpp
     src/backends/rtl_sdr/rtl_sdr_backend.cpp
+    src/backends/hackrf/hackrf_loader.cpp
+    src/backends/hackrf/hackrf_device.cpp
+    src/backends/hackrf/hackrf_backend.cpp
+    src/backends/pluto/pluto_loader.cpp
+    src/backends/pluto/pluto_device.cpp
+    src/backends/pluto/pluto_backend.cpp
 )
 
 target_include_directories(sdrmon_core_obj PUBLIC 

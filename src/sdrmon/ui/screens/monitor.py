@@ -7,6 +7,7 @@ from __future__ import annotations
 from enum import Enum, auto
 from typing import Any
 
+from textual import on
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import Static
@@ -23,6 +24,7 @@ from sdrmon.ui.components import (
 )
 from sdrmon.ui.controller import UIController
 from sdrmon.ui.widgets.controls import AudioSettingsChanged
+from sdrmon.ui.widgets.panels import CreateChannelMsg, MuteChannelMsg, RemoveChannelMsg
 from sdrmon.ui.widgets.spectrum import (
     SpectrumClick,
     SpectrumUpdated,
@@ -182,6 +184,7 @@ class MonitorScreen(Screen):
             RateControl,
             ZoomScaleControl,
         )
+        from sdrmon.ui.widgets.panels import ChannelPanel, SignalPanel
 
         with Horizontal(id="monitor-body"):
             with Vertical(id="vis-container"):
@@ -196,6 +199,8 @@ class MonitorScreen(Screen):
                     yield ZoomScaleControl(id="ctrl-zoom")
                     yield AudioControl(id="ctrl-audio")
                     yield DeviceControl(id="ctrl-device")
+                    yield ChannelPanel(id="channel-panel")
+                    yield SignalPanel(id="signal-panel")
                     yield EventLog(id="event-log")
                 yield ActionButtons(id="ctrl-actions")
 
@@ -215,7 +220,9 @@ class MonitorScreen(Screen):
         self.query_one("#event-log", EventLog).border_title = "EVENTS"
 
         try:
-            freq = self.device.get_frequency() or self.app.sdrmon_config.center_frequency
+            freq = (
+                self.device.get_frequency() or self.app.sdrmon_config.center_frequency
+            )
         except Exception:
             freq = self.app.sdrmon_config.center_frequency
         try:
@@ -297,7 +304,10 @@ class MonitorScreen(Screen):
         ch_freq = cfg.frequency
         mgr = self.controller.channel_manager
         if mgr and mgr.channels:
-            ch_freq = int(mgr.channels[0].frequency)
+            if mgr.channels:
+                ch_freq = int(list(mgr.channels.values())[0].frequency)
+            else:
+                ch_freq = int(self.controller.config.frequency)
 
         freq_center_s = fmt_freq(cfg.frequency)
         freq_ch_s = fmt_freq(ch_freq)
@@ -369,7 +379,10 @@ class MonitorScreen(Screen):
     def on_spectrum_updated(self, message: SpectrumUpdated) -> None:
         try:
             spec = self.query_one("#spectrum", SpectrumWidget)
-            spec.update_result(message.result)
+            spec.update_result(message.result, message.signals)
+
+            sig_panel = self.query_one("#signal-panel", "SignalPanel")
+            sig_panel.update_signals(message.signals)
         except Exception:
             pass
         try:
@@ -378,6 +391,36 @@ class MonitorScreen(Screen):
                 wf.update_result(message.result)
         except Exception:
             pass
+
+    @on(CreateChannelMsg)
+    def on_create_channel(self, message: CreateChannelMsg) -> None:
+        if self.controller:
+            self.controller.channel_manager.create_channel(
+                message.frequency, message.mode, message.bandwidth
+            )
+            self.refresh_channel_panel()
+
+    def refresh_channel_panel(self) -> None:
+        try:
+            cp = self.query_one("#channel-panel", "ChannelPanel")
+            if self.controller:
+                cp.update_channels(self.controller.channel_manager.list_channels())
+        except Exception:
+            pass
+
+    @on(RemoveChannelMsg)
+    def on_remove_channel(self, message: RemoveChannelMsg) -> None:
+        if self.controller:
+            self.controller.channel_manager.remove_channel(message.channel_id)
+            self.refresh_channel_panel()
+
+    @on(MuteChannelMsg)
+    def on_mute_channel(self, message: MuteChannelMsg) -> None:
+        if self.controller:
+            ch = self.controller.channel_manager.get_channel(message.channel_id)
+            if ch:
+                ch.muted = not ch.muted
+            self.refresh_channel_panel()
         # Update header and info
         try:
             # Transition to LIVE state once actual data is received
@@ -465,18 +508,12 @@ class MonitorScreen(Screen):
 
             if not mgr.channels:
                 # Add default channel if missing
-                from sdrmon.dsp.channel import Channel
-
-                ch = Channel(
-                    "NFM",
-                    hz,
-                    self.controller.config.sample_rate,
-                    self.controller.audio_rate,
-                )
-                mgr.add_channel(ch)
+                mgr.create_channel(hz, "NFM", 12500.0)
             else:
-                mgr.channels[0].frequency = hz
-                mgr.channels[0].set_sdr_center(mgr.sdr_center)
+                if mgr.channels:
+                    first_ch = list(mgr.channels.values())[0]
+                    first_ch.frequency = hz
+                    first_ch.set_sdr_center(mgr.sdr_center)
 
             # Check if channel is within usable bandwidth
             current_sdr_center = self.controller.config.frequency
@@ -508,55 +545,49 @@ class MonitorScreen(Screen):
             return
         mgr = self.controller.channel_manager
         if not mgr.channels:
-            from sdrmon.dsp.channel import Channel
-
-            ch = Channel(
-                "NFM",
+            mgr.create_channel(
                 self.controller.config.frequency,
-                self.controller.config.sample_rate,
-                self.controller.audio_rate,
+                "NFM",
+                12500.0,
             )
-            mgr.add_channel(ch)
 
-        ch = mgr.channels[0]
-        try:
-            if message.mode is not None:
-                ch.mode = message.mode.upper()
-                # recreate demod
-                from sdrmon.dsp.demod import create_demodulator
+        # Get the first channel and apply settings
+        if mgr.channels:
+            ch = list(mgr.channels.values())[0]
+            try:
+                if message.mode is not None:
+                    ch.mode = message.mode.upper()
+                    from sdrmon.dsp.demod import create_demodulator
 
-                ch.demod = create_demodulator(ch.mode, ch.sdr_rate, ch.audio_rate)
-            if message.squelch is not None:
-                ch.squelch = message.squelch
-            if message.volume is not None:
-                ch.volume = message.volume
-            if message.muted is not None:
-                ch.muted = message.muted
-            if message.device is not None:
-                # Open new audio device
+                    ch.demod = create_demodulator(ch.mode, ch.sdr_rate, ch.audio_rate)
+                if message.squelch is not None:
+                    ch.squelch = message.squelch
+                if message.volume is not None:
+                    ch.volume = message.volume
+                if message.muted is not None:
+                    ch.muted = message.muted
+            except Exception as e:
+                self.query_one(EventLog).log(f"Audio setting error: {e}", "error")
+
+        if message.device is not None:
+            # Open new audio device
+            try:
                 self.controller.audio_out.close()
                 if message.device.lower() == "null":
                     from sdrmon.audio.output import NullAudioOutput
 
                     self.controller.audio_out = NullAudioOutput()
                 else:
-                    try:
-                        from sdrmon.audio.output import SoundDeviceAudioOutput
+                    from sdrmon.audio.output import SoundDeviceAudioOutput
 
-                        self.controller.audio_out = SoundDeviceAudioOutput()
-                        dev_name = (
-                            message.device
-                            if message.device.lower() != "default"
-                            else None
-                        )
-                        self.controller.audio_out.open(
-                            dev_name, self.controller.audio_rate
-                        )
-                    except Exception as e:
-                        self.query_one(EventLog).log(f"Audio open err: {e}", "error")
+                    self.controller.audio_out = SoundDeviceAudioOutput()
+                    dev_name = (
+                        message.device if message.device.lower() != "default" else None
+                    )
+                    self.controller.audio_out.open(dev_name, self.controller.audio_rate)
                 self.controller.audio_out.start()
-        except Exception as e:
-            self.query_one(EventLog).log(f"Audio DSP err: {e}", "error")
+            except Exception as e:
+                self.query_one(EventLog).log(f"Audio open err: {e}", "error")
 
     def on_stream_error_msg(self, message: Any) -> None:
         log = self.query_one(EventLog)

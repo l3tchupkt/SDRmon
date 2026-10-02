@@ -3,7 +3,7 @@ import queue
 import numpy as np
 
 from sdrmon.audio.output import AudioOutput
-from sdrmon.dsp.channel import Channel, ChannelManager
+from sdrmon.dsp.channel import ChannelManager
 from sdrmon.dsp.filters import Resampler
 
 
@@ -60,13 +60,11 @@ def test_dsp_continuity():
     mgr_single = ChannelManager(sdr_rate, audio_rate)
     mgr_split = ChannelManager(sdr_rate, audio_rate)
 
-    ch_single = Channel("wfm", 100_000_000, sdr_rate, audio_rate)
+    ch_single = mgr_single.create_channel(100_000_000, "WFM", 200000.0)
     ch_single.squelch = -200
-    mgr_single.add_channel(ch_single)
 
-    ch_split = Channel("wfm", 100_000_000, sdr_rate, audio_rate)
+    ch_split = mgr_split.create_channel(100_000_000, "WFM", 200000.0)
     ch_split.squelch = -200
-    mgr_split.add_channel(ch_split)
 
     # Generate a dummy complex sine wave signal
     t = np.arange(int(sdr_rate * 0.1)) / sdr_rate

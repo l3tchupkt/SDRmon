@@ -105,16 +105,18 @@ class DeviceModal(SDRmonModal):
 
     def _show_loading(self) -> None:
         lv = self.query_one("#device-list", ListView)
-        lv.clear()
-        lv.append(ListItem(Static("Discovering devices..."), id="loading-item"))
+        for child in list(lv.children):
+            child.remove()
+        lv.mount(ListItem(Static("Discovering devices..."), id="loading-item"))
 
     def _populate_list(self, physical: list[DeviceInfo]) -> None:
         self._entries = _build_entries(physical)
         lv = self.query_one("#device-list", ListView)
-        lv.clear()
+        for child in list(lv.children):
+            child.remove()
 
-        for idx, entry in enumerate(self._entries):
-            lv.append(_make_list_item(entry, idx))
+        for entry in self._entries:
+            lv.mount(_make_list_item(entry, None))
 
         if lv.children:
             lv.index = 0

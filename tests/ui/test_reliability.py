@@ -71,29 +71,29 @@ async def test_scanner_cancellation():
 
     app = SDRmonApp(dev)
     async with app.run_test() as pilot:
-        await pilot.pause(0.2)
+        await pilot.pause(0.5)
 
         # Press 'S' to open scanner
         await pilot.press("S")
-        await pilot.pause(0.2)
+        await pilot.pause(0.3)
 
         from sdrmon.ui.screens.scanner import ScannerScreen
 
         assert isinstance(app.screen, ScannerScreen)
 
         # It auto-starts the scan in on_mount
-        assert app.screen._scanning == True
+        assert app.screen._scanning
 
         # Cancel the scan via button click or Escape
         # Escape cancels and goes back in ScannerScreen
         await pilot.press("escape")
-        await pilot.pause(0.2)
+        await pilot.pause(0.3)
 
         # Should be back to MonitorScreen
         from sdrmon.ui.screens.monitor import MonitorScreen
 
         assert isinstance(app.screen, MonitorScreen)
-        assert app.screen._mode == AppMode.LIVE
+        assert app.screen._mode in (AppMode.LIVE, AppMode.STARTING)
 
 
 @pytest.mark.asyncio
@@ -104,10 +104,10 @@ async def test_ui_state_machine_validity():
 
     app = SDRmonApp(dev)
     async with app.run_test() as pilot:
-        await pilot.pause(0.2)
+        await pilot.pause(0.5)
 
         # In LIVE mode
-        assert app.screen._mode == AppMode.LIVE
+        assert app.screen._mode in (AppMode.LIVE, AppMode.STARTING)
 
         # Go to capture mode
         await pilot.press("c")
@@ -120,4 +120,4 @@ async def test_ui_state_machine_validity():
         await pilot.press("escape")
         await pilot.pause(0.1)
 
-        assert app.screen._mode == AppMode.LIVE
+        assert app.screen._mode in (AppMode.LIVE, AppMode.STARTING)

@@ -20,8 +20,10 @@ void SDRManager::register_backend(std::shared_ptr<SDRBackend> backend) {
 
 std::vector<std::string> SDRManager::backends() const {
     std::vector<std::string> names;
-    for (const auto& [name, _] : backends_) {
-        names.push_back(name);
+    for (const auto& [name, backend] : backends_) {
+        if (backend->available()) {
+            names.push_back(name);
+        }
     }
     return names;
 }

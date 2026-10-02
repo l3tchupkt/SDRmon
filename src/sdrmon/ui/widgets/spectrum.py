@@ -16,9 +16,10 @@ from sdrmon.analysis.spectrum import SpectrumResult
 class SpectrumUpdated(Message):
     """Sent when new spectrum data is available."""
 
-    def __init__(self, result: SpectrumResult) -> None:
+    def __init__(self, result: SpectrumResult, signals: list = None) -> None:
         super().__init__()
         self.result = result
+        self.signals = signals or []
 
 
 class SpectrumClick(Message):
@@ -66,12 +67,14 @@ class SpectrumWidget(Widget):
         self._last_max_power = 0.0
         self._last_min_power = -100.0
         self.result: SpectrumResult | None = None
+        self.signals = []
         self.auto_scale_enabled = True
         self.manual_range = 100.0
         self.manual_ref = 0.0
 
-    def update_result(self, new_result: SpectrumResult) -> None:
+    def update_result(self, new_result: SpectrumResult, signals: list = None) -> None:
         self.result = new_result
+        self.signals = signals or []
         if new_result is not None:
             if self.auto_scale_enabled:
                 # Auto-scale
@@ -181,9 +184,25 @@ class SpectrumWidget(Widget):
             if max_pos > cen_pos + len(s_cen):
                 line = line[:max_pos] + s_max
 
-            # If there's a peak, also show it on the top line? Let's just return the strip
+            if len(self.signals) > 0:
+                # Render signal markers on the top line
+                line_chars = list(line)
+                for sig in self.signals:
+                    if f_min <= sig.frequency <= f_max:
+                        # calculate pixel position
+                        ratio = (sig.frequency - f_min) / (f_max - f_min)
+                        pos = int(ratio * chart_width)
+                        if 0 <= pos < chart_width:
+                            line_chars[pos] = "▼"
+                line = "".join(line_chars)
+
             return Strip(
-                [Segment(" " * 8 + line, Style(color="yellow", bgcolor="#060a10"))]
+                [
+                    Segment(
+                        " " * 8 + line,
+                        Style(color="yellow", bgcolor="#060a10", bold=True),
+                    )
+                ]
             )
 
         # Draw the spectrum bars

@@ -38,7 +38,7 @@ class FrequencyControl(Widget):
     }
     .freq-btn:hover { background: #1e88e5; }
     .freq-btn:focus { text-style: bold; background: #1976d2; }
-    
+
     #freq-input {
         width: 18;
         height: 1;

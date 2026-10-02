@@ -256,6 +256,8 @@ class TestRtlSdrHardware:
         mgr = NativeSDRManager()
         devices = mgr.discover()
         rtl_devices = [d for d in devices if d.driver == "rtl_sdr"]
+        if not rtl_devices:
+            pytest.skip("No RTL-SDR hardware found")
         assert len(rtl_devices) >= 1, "No RTL-SDR hardware found"
 
     def test_hardware_full_pipeline(self):
@@ -270,6 +272,8 @@ class TestRtlSdrHardware:
         mgr = NativeSDRManager()
         devices = mgr.discover()
         rtl_devs = [d for d in devices if d.driver == "rtl_sdr"]
+        if not rtl_devs:
+            pytest.skip("No RTL-SDR device found for hardware test")
         assert rtl_devs, "No RTL-SDR device found for hardware test"
 
         dev = mgr.open(rtl_devs[0].bus)

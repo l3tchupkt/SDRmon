@@ -9,12 +9,14 @@ from typing import Optional
 from textual.message import Message
 
 from sdrmon.analysis.spectrum import SpectrumAnalyzer
+from sdrmon.audio.mixer import AudioMixer
 from sdrmon.audio.output import AudioOutput, NullAudioOutput
 from sdrmon.capture.recorder import IQRecorder
 from sdrmon.core.device import SDRDevice
 from sdrmon.core.settings import StreamConfig
 from sdrmon.core.stream import IQStream
 from sdrmon.dsp.channel import ChannelManager
+from sdrmon.dsp.detector import SignalDetector
 
 try:
     from sdrmon.audio.output import SoundDeviceAudioOutput
@@ -65,6 +67,9 @@ class UIController:
                 self.audio_out = SoundDeviceAudioOutput()
             except Exception:
                 pass
+
+        self.mixer = AudioMixer(lambda: self.audio_out)
+        self.detector = SignalDetector(config.sample_rate)
 
     def start(self):
         """Start the background worker."""
@@ -120,6 +125,7 @@ class UIController:
     def set_sample_rate(self, rate: int):
         self.device.set_sample_rate(rate)
         self.channel_manager.set_sdr_rate(rate)
+        self.detector.sdr_rate = rate
         # Update config to keep in sync
         self.config = StreamConfig(
             frequency=self.device.get_frequency(),
@@ -165,15 +171,10 @@ class UIController:
 
                     # DSP processing runs on every block to keep state and audio valid
                     try:
-                        # Ensure channel manager knows correct SDR center
-                        # (in case the UI didn't update it yet)
                         self.channel_manager.set_sdr_center(block.center_frequency)
                         audio_chunks = self.channel_manager.process(block.samples)
                         if audio_chunks:
-                            # We only support 1 channel mostly, grab the first one
-                            out_audio = audio_chunks[0]
-                            if len(out_audio) > 0:
-                                self.audio_out.write(out_audio)
+                            self.mixer.mix_and_write(audio_chunks)
                     except Exception as e:
                         # Audio error shouldn't crash the pipeline
                         self.app.post_message(StreamErrorMsg(e, is_audio=True))
@@ -181,8 +182,14 @@ class UIController:
                     if now - last_update >= min_interval:
                         if self._analyzer:
                             result = self._analyzer.process(block)
+                            signals = self.detector.detect(
+                                result.power, block.center_frequency
+                            )
+
                             # Push to Textual UI thread
-                            self.app.post_message(SpectrumUpdated(result))
+                            self.app.post_message(
+                                SpectrumUpdated(result, signals=signals)
+                            )
                         last_update = now
 
         except Exception as e:

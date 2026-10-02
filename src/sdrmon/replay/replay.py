@@ -88,7 +88,7 @@ class ReplayStream(IQStream):
         self.block_size = block_size
         self.loop = loop
         self.rate_control = rate_control
-        
+
         # Validate file size matches expected sample count
         expected_bytes = self.meta.samples * 8
         actual_bytes = self.iq_path.stat().st_size
@@ -98,8 +98,10 @@ class ReplayStream(IQStream):
                 f"{self.meta.samples} samples, got {actual_bytes} bytes."
             )
         if actual_bytes % 8 != 0:
-            raise ValueError("Corrupt capture file: size is not a multiple of 8 bytes (complex64).")
-            
+            raise ValueError(
+                "Corrupt capture file: size is not a multiple of 8 bytes (complex64)."
+            )
+
         self._running = False
         self._seq = 0
         self._file = open(self.iq_path, "rb")

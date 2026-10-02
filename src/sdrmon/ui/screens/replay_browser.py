@@ -109,10 +109,11 @@ class ReplayModal(SDRmonModal):
                     entries.append(p)
             self._entries = entries
             lv = self.query_one("#file-list", ListView)
-            lv.clear()
+            for child in list(lv.children):
+                child.remove()
             for e in entries:
                 icon = "📁 " if e.is_dir() else "📄 "
-                lv.append(ListItem(Static(f"{icon}{e.name}")))
+                lv.mount(ListItem(Static(f"{icon}{e.name}")))
             status = self.query_one("#replay-status", Static)
             status.update(
                 f"{len([e for e in entries if not e.is_dir()])} .iq file(s) in directory"

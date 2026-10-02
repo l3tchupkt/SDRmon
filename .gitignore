@@ -3,12 +3,16 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
+# C/C++ extensions and binaries
 *.so
+*.pyd
+*.dll
+*.exe
 
 # Distribution / packaging
 .Python
 build/
+_skbuild/
 develop-eggs/
 dist/
 downloads/
@@ -35,6 +39,7 @@ MANIFEST
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
+*.log
 
 # Unit test / coverage reports
 htmlcov/
@@ -74,3 +79,20 @@ venv.bak/
 *.iq
 *.json
 captures/
+
+
+
+# SDR native/build artifacts
+rtl-sdr-blog/**/test.bin
+*.pyd
+*.exe
+*.dll
+*.lib
+*.log
+
+# Build
+build/
+dist/
+.venv/
+__pycache__/
+.pytest_cache/

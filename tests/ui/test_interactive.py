@@ -51,7 +51,7 @@ async def test_ui_lifecycle_and_interaction():
         # Test mouse interaction (Spectrum tuning)
         from sdrmon.ui.widgets.spectrum import SpectrumWidget
 
-        spec = app.screen.query_one(SpectrumWidget)
+        app.screen.query_one(SpectrumWidget)
 
         # Simulate click
         await pilot.click(SpectrumWidget, offset=Offset(20, 5))

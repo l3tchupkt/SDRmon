@@ -15,17 +15,15 @@ from sdrmon.ui.components import DEVICE_SHORTCUTS, AppMode, SDRmonFooter, SDRmon
 
 LOGO_ART = """\
 [#00b0ff]
-
-╔═══════╗ ╔═══════╗ ╔═══════╗
-║ ╔═════╝ ║ ╔═══╗ ║ ║ ╔═══╗ ║ ╔═════════╗ ╔═══════╗ ╔═══════╗
-║ ╚═════╗ ║ ║   ║ ║ ║ ╚═══╝ ║ ║ ╔═╗ ╔═╗ ║ ║ ╔═══╗ ║ ║ ╔═══╗ ║
-╚═════╗ ║ ║ ║   ║ ║ ║ ╔═╗ ╔═╝ ║ ║ ║ ║ ║ ║ ║ ║   ║ ║ ║ ║   ║ ║
-╔═════╝ ║ ║ ╚═══╝ ║ ║ ║ ║ ╚═╗ ║ ║ ║ ║ ║ ║ ║ ╚═══╝ ║ ║ ║   ║ ║
-╚═══════╝ ╚═══════╝ ╚═╝ ╚═══╝ ╚═╝ ╚═╝ ╚═╝ ╚═══════╝ ╚═╝   ╚═╝
-
+  ██████  ██████  ██████  ███    ███  ██████  ███    ██
+ ██       ██   ██ ██   ██ ████  ████ ██    ██ ████   ██
+ ╚█████   ██   ██ ██████  ██ ████ ██ ██    ██ ██ ██  ██
+     ╚██  ██   ██ ██   ██ ██  ██  ██ ██    ██ ██  ██ ██
+ ██████   ██████  ██   ██ ██      ██  ██████  ██   ████
 [/#00b0ff]"""
 
 # ── Device list item ─────────────────────────────────────────────────────────
+
 
 class DeviceEntry:
     """Wraps a DeviceInfo with display metadata."""
@@ -47,8 +45,8 @@ class DeviceEntry:
 
 def _build_entries(devices: list[DeviceInfo]) -> list[DeviceEntry]:
     # Sort: hardware first (driver != fake), fake second
-    hw_devices = [d for d in devices if d.driver != "fake"]
-    fake_devices = [d for d in devices if d.driver == "fake"]
+    hw_devices = [d for d in devices if d.driver not in ("fake", "FakeSDR")]
+    fake_devices = [d for d in devices if d.driver in ("fake", "FakeSDR")]
 
     entries: list[DeviceEntry] = []
     for d in hw_devices:
@@ -82,10 +80,10 @@ def _build_entries(devices: list[DeviceInfo]) -> list[DeviceEntry]:
     return entries
 
 
-def _make_list_item(entry: DeviceEntry, idx: int) -> ListItem:
+def _make_list_item(entry: DeviceEntry, idx: int | None) -> ListItem:
     # Use a clean single line to match the mock
     label_text = f" [bold]{entry.label:<12}[/bold] [#546e7a]· {entry.sub}[/#546e7a]"
-    return ListItem(Static(label_text), id=f"dev-item-{idx}")
+    return ListItem(Static(label_text))
 
 
 # ── Startup screen ────────────────────────────────────────────────────────────
@@ -211,16 +209,18 @@ class StartupScreen(Screen):
         status = self.query_one("#startup-status", Static)
         status.update("[#ffea00]Scanning for devices…[/#ffea00]")
         lv = self.query_one("#device-list", ListView)
-        lv.clear()
+        for child in list(lv.children):
+            child.remove()
 
     def _finish_refresh_ui(self, physical: list[DeviceInfo]) -> None:
         status = self.query_one("#startup-status", Static)
         self._entries = _build_entries(physical)
 
         lv = self.query_one("#device-list", ListView)
-        lv.clear()
+        for child in list(lv.children):
+            child.remove()
         for idx, entry in enumerate(self._entries):
-            lv.append(_make_list_item(entry, idx))
+            lv.mount(_make_list_item(entry, idx))
 
         status.update("[#546e7a]Select an SDR interface to begin[/#546e7a]")
 
@@ -284,12 +284,12 @@ class StartupScreen(Screen):
         except Exception as e:
             self.notify(f"Failed to open device: {e}", severity="error")
             return
-            
+
         try:
-            self.app.sdrmon_config.preferred_device = entry.info.bus # type: ignore
+            self.app.sdrmon_config.preferred_device = entry.info.bus  # type: ignore
         except Exception:
             pass
-            
+
         self.app.switch_to_monitor(dev)  # type: ignore[attr-defined]
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:

@@ -52,9 +52,7 @@ def main() -> None:
     _capture_mod.setup_parser(capture_parser)
 
     # Doctor command
-    doctor_parser = subparsers.add_parser(
-        "doctor", help="Show environment diagnostics"
-    )
+    doctor_parser = subparsers.add_parser("doctor", help="Show environment diagnostics")
     from sdrmon.cli import doctor as _doctor_mod
 
     _doctor_mod.setup_parser(doctor_parser)

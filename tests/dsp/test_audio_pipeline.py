@@ -26,10 +26,10 @@ async def test_fake_sdr_audio_pipeline():
     controller.audio_out = NullAudioOutput()  # Mock audio
 
     # Add a channel (NFM at 100MHz)
-    from sdrmon.dsp.channel import Channel
-
-    ch = Channel("NFM", 100_000_000, config.sample_rate, controller.audio_rate)
-    controller.channel_manager.add_channel(ch)
+    controller.channel_manager.create_channel(100_000_000, "NFM", 12500.0)
+    # Disable squelch for test
+    ch = list(controller.channel_manager.channels.values())[0]
+    ch.squelch = -200.0
 
     # 3. Start pipeline
     controller.start()
